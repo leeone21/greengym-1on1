@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#2D6A4F" />
+  <title>그린짐 — 러닝</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="logo">GREEN<span>GYM</span></div>
+      <div class="greeting">러닝 적립</div>
+      <div class="date" id="today-date"></div>
+    </header>
+
+    <main class="content">
+      <div class="stat-grid" style="margin-bottom:12px;">
+        <div class="stat-item">
+          <div class="label">이번 달 누적</div>
+          <div class="value" id="run-month-km">- km</div>
+        </div>
+        <div class="stat-item">
+          <div class="label">전체 누적</div>
+          <div class="value" id="run-total-km">- km</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="field-row">
+          <label>날짜</label>
+          <input class="input" type="date" id="run-date" />
+        </div>
+        <div class="field-row">
+          <label>거리 (km)</label>
+          <input class="input" type="number" inputmode="decimal" step="0.1" id="run-distance" placeholder="예: 3.5" />
+        </div>
+        <div class="field-row" style="margin-bottom:16px;">
+          <label>시간 (분)</label>
+          <input class="input" type="number" inputmode="numeric" id="run-duration" placeholder="예: 25" />
+        </div>
+        <button class="btn btn-primary" id="run-save">러닝 기록 추가</button>
+      </div>
+
+      <div class="section-title">📅 월별 히스토리</div>
+      <div class="card" id="run-list-card">
+        <div id="run-list"><div class="loading">불러오는 중…</div></div>
+      </div>
+    </main>
+
+    <nav class="bottom-nav">
+      <a href="index.html"><span class="nav-icon">🏠</span>홈</a>
+      <a href="tracker.html"><span class="nav-icon">💪</span>운동</a>
+      <a href="diet.html"><span class="nav-icon">🥗</span>식단</a>
+      <a href="running.html" class="active"><span class="nav-icon">🏃</span>러닝</a>
+    </nav>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data.js"></script>
+  <script src="supabase.js"></script>
+  <script src="app.js"></script>
+  <script>initRunningPage();</script>
+</body>
+</html>

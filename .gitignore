@@ -1,0 +1,12 @@
+# Claude Code 로컬 설정
+.claude/
+
+# OS
+.DS_Store
+
+# 에디터
+.vscode/
+.idea/
+
+# 로그
+*.log

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#2D6A4F" />
+  <title>그린짐 — 식단</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="logo">GREEN<span>GYM</span></div>
+      <div class="greeting">식단 기록</div>
+      <div class="date" id="today-date"></div>
+    </header>
+
+    <main class="content">
+      <div class="card">
+        <div class="diet-field">
+          <label>🌅 아침</label>
+          <textarea id="diet-breakfast" placeholder="아침에 먹은 음식"></textarea>
+        </div>
+        <div class="diet-field">
+          <label>☀️ 점심</label>
+          <textarea id="diet-lunch" placeholder="점심에 먹은 음식"></textarea>
+        </div>
+        <div class="diet-field">
+          <label>🌙 저녁</label>
+          <textarea id="diet-dinner" placeholder="저녁에 먹은 음식"></textarea>
+        </div>
+        <div class="diet-field">
+          <label>🍪 간식</label>
+          <textarea id="diet-snack" placeholder="간식"></textarea>
+        </div>
+        <div class="diet-field" style="margin-bottom:16px;">
+          <label>💧 물 섭취</label>
+          <div class="water-counter">
+            <span class="count"><span id="water-count">0</span> 잔</span>
+            <div class="ctrl">
+              <button type="button" id="water-minus">−</button>
+              <button type="button" id="water-plus">+</button>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="diet-save">식단 저장</button>
+      </div>
+    </main>
+
+    <nav class="bottom-nav">
+      <a href="index.html"><span class="nav-icon">🏠</span>홈</a>
+      <a href="tracker.html"><span class="nav-icon">💪</span>운동</a>
+      <a href="diet.html" class="active"><span class="nav-icon">🥗</span>식단</a>
+      <a href="running.html"><span class="nav-icon">🏃</span>러닝</a>
+    </nav>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data.js"></script>
+  <script src="supabase.js"></script>
+  <script src="app.js"></script>
+  <script>initDietPage();</script>
+</body>
+</html>

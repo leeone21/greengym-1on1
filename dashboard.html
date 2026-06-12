@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#2D6A4F" />
+  <title>그린짐 — 트레이너</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 비밀번호 게이트 -->
+  <div class="app" id="gate-view" style="display:none;">
+    <div class="login-wrap">
+      <div class="login-logo">GREEN<span>GYM</span></div>
+      <div class="login-sub">트레이너 대시보드</div>
+      <div class="login-field" style="margin-bottom:22px;">
+        <label>비밀번호</label>
+        <input class="input" id="trainer-pw" type="password" placeholder="비밀번호 입력" />
+      </div>
+      <button class="btn btn-primary" id="gate-btn">입장</button>
+      <div class="login-help"><a href="index.html">← 회원 로그인으로</a></div>
+    </div>
+  </div>
+
+  <!-- 대시보드 본문 -->
+  <div class="app" id="dash-view" style="display:none;">
+    <header class="header">
+      <button class="logout-btn" onclick="trainerLogout()">나가기</button>
+      <div class="logo">GREEN<span>GYM</span></div>
+      <div class="greeting">트레이너 대시보드</div>
+      <div class="date" id="today-date"></div>
+    </header>
+
+    <main class="content">
+      <!-- 회원 목록 -->
+      <div id="member-list-view">
+        <div class="section-title">👥 전체 회원 <span id="member-count" style="color:var(--color-accent);"></span></div>
+        <div class="card" id="member-list"><div class="loading">불러오는 중…</div></div>
+      </div>
+
+      <!-- 회원 상세 -->
+      <div id="member-detail-view" style="display:none;">
+        <button class="back-btn" onclick="backToMemberList()">← 회원 목록</button>
+        <div class="section-title" id="detail-name" style="margin-top:0;"></div>
+
+        <!-- 상위 탭: 기록 조회 / 운동 처방 -->
+        <div class="detail-tabs mode-tabs">
+          <div class="dtab active" data-mode="records">기록 조회</div>
+          <div class="dtab" data-mode="prescribe">운동 처방</div>
+        </div>
+
+        <!-- 기록 조회 -->
+        <div id="records-mode">
+          <div class="detail-tabs">
+            <div class="dtab active" data-tab="workout">운동</div>
+            <div class="dtab" data-tab="diet">식단</div>
+            <div class="dtab" data-tab="running">러닝</div>
+          </div>
+          <div class="card" id="detail-body"><div class="loading">불러오는 중…</div></div>
+        </div>
+
+        <!-- 운동 처방 -->
+        <div id="prescribe-mode" style="display:none;">
+          <div class="card">
+            <div class="field-row" style="margin-bottom:0;">
+              <label>주 시작일 (월요일 기준)</label>
+              <input class="input" type="date" id="presc-week" />
+            </div>
+          </div>
+          <div class="detail-tabs" id="session-tabs"></div>
+          <div id="presc-editor"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data.js"></script>
+  <script src="supabase.js"></script>
+  <script src="app.js"></script>
+  <script>initDashboardPage();</script>
+</body>
+</html>

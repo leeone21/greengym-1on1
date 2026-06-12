@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#2D6A4F" />
+  <title>그린짐</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- 로그인 화면 -->
+  <div class="app" id="login-view" style="display:none;">
+    <div class="login-wrap">
+      <div class="login-logo">GREEN<span>GYM</span></div>
+      <div class="login-sub">회원 운동 관리</div>
+      <div class="login-field">
+        <label>이름</label>
+        <input class="input" id="login-name" type="text" placeholder="홍길동" />
+      </div>
+      <div class="login-field" style="margin-bottom:22px;">
+        <label>전화번호 뒷 4자리</label>
+        <input class="input" id="login-phone" type="tel" inputmode="numeric" maxlength="4" placeholder="1234" />
+      </div>
+      <button class="btn btn-primary" id="login-btn">로그인 / 시작하기</button>
+      <div id="login-error" style="display:none;margin-top:14px;padding:12px 14px;border-radius:12px;background:#C0455A18;color:#C0455A;font-size:13px;font-weight:600;line-height:1.5;"></div>
+      <div class="login-help">
+        처음이신가요? 입력하면 자동으로 가입됩니다.<br />
+        <a href="dashboard.html">트레이너 대시보드 →</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 홈(오늘 요약) 화면 -->
+  <div class="app" id="home-view" style="display:none;">
+    <header class="header">
+      <button class="logout-btn" onclick="logout()">로그아웃</button>
+      <div class="logo">GREEN<span>GYM</span></div>
+      <div class="greeting" id="greeting">안녕하세요 👋</div>
+      <div class="date" id="today-date"></div>
+    </header>
+
+    <main class="content">
+      <div class="summary-grid">
+        <a class="summary-card" href="tracker.html">
+          <div class="emoji">💪</div>
+          <div class="label">운동</div>
+          <div class="value" id="sum-workout">- / -</div>
+        </a>
+        <a class="summary-card" href="diet.html">
+          <div class="emoji">🥗</div>
+          <div class="label">식단</div>
+          <div class="value" id="sum-diet">-</div>
+        </a>
+        <a class="summary-card" href="running.html">
+          <div class="emoji">🏃</div>
+          <div class="label">러닝</div>
+          <div class="value" id="sum-running">-</div>
+        </a>
+      </div>
+
+      <div class="card" style="margin-top:12px;">
+        <div class="progress-row">
+          <span class="label">이번 달 러닝 목표</span>
+          <span class="num" id="run-goal-num">- / 30 km</span>
+        </div>
+        <div class="progress-bar"><div class="fill" id="run-goal-fill" style="width:0%"></div></div>
+      </div>
+
+      <div class="section-title">📊 이번 달 통계</div>
+      <div class="stat-grid">
+        <div class="stat-item">
+          <div class="label">운동일</div>
+          <div class="value" id="stat-workout-days">-</div>
+        </div>
+        <div class="stat-item">
+          <div class="label">누적 러닝</div>
+          <div class="value" id="stat-total-km">-</div>
+        </div>
+        <div class="stat-item">
+          <div class="label">이번 달 러닝</div>
+          <div class="value" id="stat-month-km">-</div>
+        </div>
+        <div class="stat-item">
+          <div class="label">식단 기록일</div>
+          <div class="value" id="stat-diet-days">-</div>
+        </div>
+      </div>
+    </main>
+
+    <nav class="bottom-nav">
+      <a href="index.html" class="active"><span class="nav-icon">🏠</span>홈</a>
+      <a href="tracker.html"><span class="nav-icon">💪</span>운동</a>
+      <a href="diet.html"><span class="nav-icon">🥗</span>식단</a>
+      <a href="running.html"><span class="nav-icon">🏃</span>러닝</a>
+    </nav>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data.js"></script>
+  <script src="supabase.js"></script>
+  <script src="app.js"></script>
+  <script>initIndexPage();</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#2D6A4F" />
+  <title>그린짐 — 운동</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="logo">GREEN<span>GYM</span></div>
+      <div class="greeting">운동 트래커</div>
+      <div class="date" id="today-date"></div>
+    </header>
+
+    <div class="tab-bar" id="tab-bar"></div>
+    <main class="content" id="exercise-list" style="margin-top:6px;"></main>
+
+    <div class="content" style="margin-top:8px; padding-bottom:140px;">
+      <button class="btn btn-primary" id="finish-btn">오늘 운동 저장</button>
+    </div>
+
+    <div class="timer-presets" id="timer-presets">
+      <button data-sec="60">1분</button>
+      <button data-sec="90">90초</button>
+      <button data-sec="120">2분</button>
+      <button data-sec="180">3분</button>
+    </div>
+    <div class="timer-bar" id="timer-bar" style="display:none;">
+      <div class="timer-card">
+        <span class="time" id="timer-display">0:00</span>
+        <div class="timer-btns">
+          <button id="timer-toggle">일시정지</button>
+          <button id="timer-reset">취소</button>
+        </div>
+      </div>
+    </div>
+
+    <nav class="bottom-nav">
+      <a href="index.html"><span class="nav-icon">🏠</span>홈</a>
+      <a href="tracker.html" class="active"><span class="nav-icon">💪</span>운동</a>
+      <a href="diet.html"><span class="nav-icon">🥗</span>식단</a>
+      <a href="running.html"><span class="nav-icon">🏃</span>러닝</a>
+    </nav>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="data.js"></script>
+  <script src="supabase.js"></script>
+  <script src="app.js"></script>
+  <script>initTrackerPage();</script>
+</body>
+</html>
