@@ -131,10 +131,18 @@ async function getDiet(userId, date) {
 }
 
 // ===== 러닝 기록 =====
-async function addRunning(userId, date, distanceKm, durationMin) {
+async function addRunning(userId, date, distanceKm, durationMin, rpe = null, satisfaction = null, memo = "") {
   const { error } = await db
     .from("running_logs")
-    .insert({ user_id: userId, date, distance_km: distanceKm, duration_min: durationMin });
+    .insert({
+      user_id: userId,
+      date,
+      distance_km: distanceKm,
+      duration_min: durationMin,
+      rpe,
+      satisfaction,
+      memo: memo || null,
+    });
   if (error) throw error;
 }
 

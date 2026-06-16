@@ -30,7 +30,7 @@
       <div class="card">
         <div class="field-row">
           <label>날짜</label>
-          <input class="input" type="date" id="run-date" />
+          <input class="input" type="date" id="run-date" max="" />
         </div>
         <div class="field-row">
           <label>거리 (km)</label>
@@ -40,6 +40,13 @@
           <label>시간 (분)</label>
           <input class="input" type="number" inputmode="numeric" id="run-duration" placeholder="예: 25" />
         </div>
+        <div class="field-label">힘든 정도 (RPE)</div>
+        <div class="rpe-tabs" id="rpe-tabs"></div>
+        <div class="rpe-hint" id="rpe-hint">선택하세요</div>
+        <div class="field-label">만족도</div>
+        <div class="satisfaction-tabs" id="satisfaction-tabs"></div>
+        <div class="field-label">메모 (선택)</div>
+        <textarea id="run-memo" class="input" placeholder="오늘 러닝 어땠나요? 자유롭게 기록하세요" rows="3" style="margin-bottom:16px;"></textarea>
         <button class="btn btn-primary" id="run-save">러닝 기록 추가</button>
       </div>
 

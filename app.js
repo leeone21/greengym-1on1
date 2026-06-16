@@ -170,12 +170,31 @@ async function countMonthDays(table, userId) {
 let trackerUser = null;
 let trackerSessions = [];
 let currentSessionKey = null;
+let trackerDate = todayKey();
 const trackerState = {}; // { sessionKey: { exIdx: [ {weight,reps,result} ] } }
 
 async function initTrackerPage() {
   trackerUser = requireAuth();
   if (!trackerUser) return;
-  document.getElementById("today-date").textContent = formatKoreanDate(todayKey());
+  trackerDate = todayKey();
+  document.getElementById("today-date").textContent = formatKoreanDate(trackerDate);
+
+  const datePicker = document.getElementById("tracker-date-picker");
+  if (datePicker) {
+    datePicker.value = trackerDate;
+    datePicker.max = todayKey();
+    datePicker.addEventListener("change", async () => {
+      trackerDate = datePicker.value;
+      document.getElementById("today-date").textContent = formatKoreanDate(trackerDate);
+      Object.keys(trackerState).forEach((k) => delete trackerState[k]);
+      const isToday = trackerDate === todayKey();
+      const finishBtn = document.getElementById("finish-btn");
+      if (finishBtn) {
+        finishBtn.textContent = isToday ? "오늘 운동 저장" : `${trackerDate} 운동 저장`;
+      }
+      await initFreeMode();
+    });
+  }
 
   initTimer();
 
@@ -281,7 +300,7 @@ async function selectSession(key) {
   if (!(key in trackerState)) {
     trackerState[key] = {};
     try {
-      const log = await getWorkout(trackerUser.id, todayKey(), key);
+      const log = await getWorkout(trackerUser.id, trackerDate, key);
       if (log && log.exercises) {
         log.exercises.forEach((e, i) => {
           const sets = {};
@@ -524,7 +543,7 @@ function buildSaveExercises() {
 
 async function saveCurrentSessionSilent() {
   try {
-    await saveWorkout(trackerUser.id, todayKey(), currentSessionKey, buildSaveExercises());
+    await saveWorkout(trackerUser.id, trackerDate, currentSessionKey, buildSaveExercises());
   } catch (e) {
     /* 조용히 무시 — 명시적 저장 버튼에서 에러 표시 */
   }
@@ -541,10 +560,10 @@ async function saveCurrentSession() {
   btn.disabled = true;
   btn.textContent = "저장 중…";
   try {
-    await saveWorkout(trackerUser.id, todayKey(), currentSessionKey, exercises);
+    await saveWorkout(trackerUser.id, trackerDate, currentSessionKey, exercises);
     // Supabase 저장 성공 후 Google Sheets 백업 (fire-and-forget)
     backupToSheet({
-      date: todayKey(),
+      date: trackerDate,
       member: trackerUser.name,
       day: session.label,
       exercises,
@@ -692,11 +711,55 @@ async function initDietPage() {
 
 // ===== 러닝 =====
 let runUser = null;
+let runRpe = null;
+let runSatisfaction = null;
+
+const RPE_LABELS = {
+  1: "매우 쉬움", 2: "쉬움", 3: "약간 쉬움", 4: "보통",
+  5: "약간 힘듦", 6: "힘듦", 7: "많이 힘듦", 8: "매우 힘듦",
+  9: "거의 최대", 10: "최대",
+};
+const SATISFACTION_LABELS = ["", "😞 별로", "😕 아쉬움", "😐 보통", "😊 좋음", "🔥 최고"];
+
+function renderRpeTabs(selected) {
+  const tabs = document.getElementById("rpe-tabs");
+  const hint = document.getElementById("rpe-hint");
+  if (!tabs || !hint) return;
+  tabs.innerHTML = Array.from({ length: 10 }, (_, i) => i + 1)
+    .map((n) => `<button class="rpe-btn${n === selected ? " active" : ""}" data-rpe="${n}">${n}</button>`)
+    .join("");
+  hint.textContent = selected ? `${selected} · ${RPE_LABELS[selected]}` : "선택하세요";
+  tabs.querySelectorAll(".rpe-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      runRpe = Number(btn.dataset.rpe);
+      renderRpeTabs(runRpe);
+    });
+  });
+}
+
+function renderSatisfactionTabs(selected) {
+  const tabs = document.getElementById("satisfaction-tabs");
+  if (!tabs) return;
+  tabs.innerHTML = [1, 2, 3, 4, 5]
+    .map((n) => `<button class="sat-btn${n === selected ? " active" : ""}" data-sat="${n}">${SATISFACTION_LABELS[n]}</button>`)
+    .join("");
+  tabs.querySelectorAll(".sat-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      runSatisfaction = Number(btn.dataset.sat);
+      renderSatisfactionTabs(runSatisfaction);
+    });
+  });
+}
+
 async function initRunningPage() {
   runUser = requireAuth();
   if (!runUser) return;
   document.getElementById("today-date").textContent = formatKoreanDate(todayKey());
   document.getElementById("run-date").value = todayKey();
+  document.getElementById("run-date").max = todayKey();
+
+  renderRpeTabs(null);
+  renderSatisfactionTabs(null);
 
   document.getElementById("run-save").addEventListener("click", async () => {
     const date = document.getElementById("run-date").value;
@@ -710,9 +773,19 @@ async function initRunningPage() {
     btn.disabled = true;
     btn.textContent = "저장 중…";
     try {
-      await addRunning(runUser.id, date, dist, dur || 0);
+      await addRunning(
+        runUser.id, date, dist, dur || 0,
+        runRpe || null,
+        runSatisfaction || null,
+        document.getElementById("run-memo").value.trim()
+      );
       document.getElementById("run-distance").value = "";
       document.getElementById("run-duration").value = "";
+      document.getElementById("run-memo").value = "";
+      runRpe = null;
+      runSatisfaction = null;
+      renderRpeTabs(null);
+      renderSatisfactionTabs(null);
       showToast("러닝 기록을 추가했어요 🏃");
       await loadRunning();
     } catch (e) {
@@ -745,9 +818,19 @@ async function loadRunning() {
   }
   list.innerHTML = runs
     .map((r) => {
-      const pace = r.duration_min ? `${r.duration_min}분 · ${(r.duration_min / r.distance_km).toFixed(1)}분/km` : "";
+      const pace = r.duration_min && r.distance_km
+        ? `${r.duration_min}분 · ${(r.duration_min / r.distance_km).toFixed(1)}분/km`
+        : r.duration_min ? `${r.duration_min}분` : "";
+      const rpeText = r.rpe ? `RPE ${r.rpe} · ${RPE_LABELS[r.rpe]}` : "";
+      const satText = r.satisfaction ? SATISFACTION_LABELS[r.satisfaction] : "";
+      const memoText = r.memo ? `<div class="run-memo">${escapeHtml(r.memo)}</div>` : "";
       return `<div class="run-item">
-        <div><div class="run-date">${r.date}</div><div class="run-detail">${pace}</div></div>
+        <div>
+          <div class="run-date">${r.date}</div>
+          <div class="run-detail">${pace}</div>
+          ${rpeText || satText ? `<div class="run-feeling">${[rpeText, satText].filter(Boolean).join(" · ")}</div>` : ""}
+          ${memoText}
+        </div>
         <div class="run-km">${Number(r.distance_km).toFixed(1)} km</div>
       </div>`;
     })
@@ -1077,7 +1160,7 @@ async function initFreeMode() {
       .from("workout_logs")
       .select("*")
       .eq("user_id", trackerUser.id)
-      .eq("date", todayKey())
+      .eq("date", trackerDate)
       .eq("type", "free")
       .limit(1);
     freeExercises = (data && data.length) ? (data[0].exercises || []) : [];
@@ -1176,11 +1259,11 @@ async function saveFreeWorkout() {
   try {
     const { data: existing } = await db
       .from("workout_logs").select("id")
-      .eq("user_id", trackerUser.id).eq("date", todayKey()).eq("type", "free").limit(1);
+      .eq("user_id", trackerUser.id).eq("date", trackerDate).eq("type", "free").limit(1);
     if (existing && existing.length) {
       await db.from("workout_logs").update({ exercises: valid }).eq("id", existing[0].id);
     } else {
-      await db.from("workout_logs").insert({ user_id: trackerUser.id, date: todayKey(), day: 0, type: "free", exercises: valid });
+      await db.from("workout_logs").insert({ user_id: trackerUser.id, date: trackerDate, day: 0, type: "free", exercises: valid });
     }
     showToast("자유 운동 저장 완료 💪");
   } catch (e) {

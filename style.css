@@ -678,3 +678,54 @@ select.input { appearance: none; -webkit-appearance: none; }
   font-size: 12px; padding: 5px 10px; margin-top: 4px;
 }
 .lesson-set-row .input { padding: 8px 6px; text-align: center; }
+
+/* RPE 탭 */
+.field-label { font-size: 13px; font-weight: 600; color: #8B8FA8; margin-bottom: 8px; margin-top: 4px; }
+.rpe-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.rpe-btn {
+  width: 44px; height: 44px;
+  border-radius: 10px;
+  background: #2A2D3A;
+  color: #8B8FA8;
+  font-size: 15px; font-weight: 700;
+  border: 1.5px solid #2A2D3A;
+  cursor: pointer;
+}
+.rpe-btn.active { background: #00E5A0; color: #0F1117; border-color: #00E5A0; }
+.rpe-hint { font-size: 12px; color: #8B8FA8; margin-bottom: 16px; min-height: 16px; }
+
+/* 만족도 탭 */
+.satisfaction-tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+.sat-btn {
+  flex: 1;
+  padding: 10px 4px;
+  border-radius: 10px;
+  background: #2A2D3A;
+  color: #FFFFFF;
+  font-size: 12px;
+  border: 1.5px solid #2A2D3A;
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.4;
+}
+.sat-btn.active { background: #1A3A2A; border-color: #00E5A0; color: #00E5A0; font-weight: 700; }
+
+/* 러닝 히스토리 추가 정보 */
+.run-feeling { font-size: 12px; color: #8B8FA8; margin-top: 2px; }
+.run-memo { font-size: 12px; color: #8B8FA8; margin-top: 4px; font-style: italic; }
+
+/* 트래커 날짜 행 */
+.tracker-date-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+#tracker-date-picker {
+  background: #2A2D3A;
+  color: #FFFFFF;
+  border: 1.5px solid #2A2D3A;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+}
