@@ -585,6 +585,41 @@ body.timer-active .app { padding-top: 70px; }
 }
 select.input { appearance: none; -webkit-appearance: none; }
 
+/* ===== 트래커 모드 탭 ===== */
+.mode-tabs-bar { display: flex; gap: 8px; padding: 12px 16px 0; }
+.mode-tab {
+  flex: 1; padding: 10px 0; text-align: center; border-radius: 10px;
+  background: var(--color-surface); color: var(--color-text-muted);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  border: 1.5px solid var(--color-border);
+}
+.mode-tab.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+
+/* ===== 자유 기록 ===== */
+.free-ex-header { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.free-ex-header .input { flex: 1; }
+.free-ex-del { background: none; border: none; color: var(--color-danger); font-size: 20px; font-weight: 700; cursor: pointer; padding: 0 4px; }
+.free-set-row {
+  display: grid; grid-template-columns: 24px 1fr 12px 1fr auto 20px;
+  gap: 6px; align-items: center; padding: 6px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.free-result-btns { display: flex; gap: 4px; }
+.result-btn { background: none; border: 1.5px solid var(--color-border); border-radius: 6px; font-size: 13px; font-weight: 700; padding: 4px 7px; cursor: pointer; }
+.result-btn.ok { color: var(--color-primary); }
+.result-btn.ok.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+.result-btn.no { color: var(--color-danger); }
+.result-btn.no.active { background: var(--color-danger); color: #fff; border-color: var(--color-danger); }
+.free-set-del { background: none; border: none; color: var(--color-text-muted); font-size: 16px; cursor: pointer; }
+.free-set-row .input { padding: 8px 6px; text-align: center; }
+
+/* ===== 숙제 확인 ===== */
+.homework-ex-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--color-border); font-size: 14px; }
+.homework-ex-detail { color: var(--color-text-muted); font-size: 13px; }
+.trainer-memo { margin-top: 8px; padding: 8px 10px; background: var(--color-primary-dim, #e8f5ee); border-radius: 8px; font-size: 13px; color: var(--color-primary); }
+.badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 700; background: var(--color-border); color: var(--color-text-muted); }
+.badge-done { background: var(--color-primary) !important; color: #fff !important; }
+
 /* ===== 레슨 기록 캘린더 ===== */
 .lesson-cal { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: var(--shadow-card); }
 .cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }

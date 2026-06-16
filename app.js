@@ -180,6 +180,21 @@ async function initTrackerPage() {
   initTimer();
   document.getElementById("finish-btn").addEventListener("click", saveCurrentSession);
 
+  // 모드 탭 전환
+  document.querySelectorAll(".mode-tab").forEach((tab) => {
+    tab.addEventListener("click", async () => {
+      const mode = tab.dataset.mode;
+      document.querySelectorAll(".mode-tab").forEach((t) => t.classList.toggle("active", t === tab));
+      document.getElementById("tab-bar").style.display = mode === "program" ? "flex" : "none";
+      document.getElementById("exercise-list").style.display = mode === "program" ? "block" : "none";
+      document.getElementById("finish-btn").style.display = mode === "program" ? "block" : "none";
+      document.getElementById("free-section").style.display = mode === "free" ? "block" : "none";
+      document.getElementById("homework-section").style.display = mode === "homework" ? "block" : "none";
+      if (mode === "free") await initFreeMode();
+      else if (mode === "homework") await initHomeworkMode();
+    });
+  });
+
   document.getElementById("exercise-list").innerHTML = '<div class="loading">불러오는 중…</div>';
   trackerSessions = await loadTrackerSessions(trackerUser);
   buildSessionTabs();
@@ -753,6 +768,7 @@ let prescWeek = null;     // Date (월요일)
 let prescSession = 1;     // 1~5
 let prescExercises = [];  // [{name, sets, reps, weight, warmup}]
 let prescMemo = "";
+let prescIsHomework = false;
 
 function trainerLogout() {
   sessionStorage.removeItem(DASH_SESSION_KEY);
@@ -930,9 +946,11 @@ async function loadPrescription() {
         warmup: !!e.warmup,
       }));
       prescMemo = existing.memo || "";
+      prescIsHomework = !!existing.is_homework;
     } else {
       prescExercises = [];
       prescMemo = "";
+      prescIsHomework = false;
     }
   } catch (e) {
     prescExercises = [];
@@ -986,6 +1004,10 @@ function renderPrescEditor() {
   html += `<button class="btn btn-outline" id="presc-add" style="margin-bottom:12px;">+ 종목 추가</button>`;
   html += `<div class="diet-field"><label>회차 메모</label>
     <textarea id="presc-memo" placeholder="예: 벤치프레스 그립 넓게, 천천히">${escapeHtml(prescMemo)}</textarea></div>`;
+  html += `<label class="presc-warmup" style="margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+    <input type="checkbox" id="presc-is-homework" ${prescIsHomework ? "checked" : ""} />
+    📌 숙제로 지정 (회원 숙제 탭에 표시)
+  </label>`;
   html += `<button class="btn btn-primary" id="presc-save">${prescSession}회차 처방 저장</button>`;
   editor.innerHTML = html;
 
@@ -1028,6 +1050,8 @@ function syncPrescFromDOM() {
   });
   const memoEl = document.getElementById("presc-memo");
   if (memoEl) prescMemo = memoEl.value;
+  const hwEl = document.getElementById("presc-is-homework");
+  if (hwEl) prescIsHomework = hwEl.checked;
 }
 
 async function savePrescription() {
@@ -1041,13 +1065,206 @@ async function savePrescription() {
   btn.disabled = true;
   btn.textContent = "저장 중…";
   try {
-    await saveProgram(detailMember.id, ymd(prescWeek), prescSession, valid, prescMemo);
+    await saveProgram(detailMember.id, ymd(prescWeek), prescSession, valid, prescMemo, prescIsHomework);
     showToast(`${prescSession}회차 처방을 저장했어요 ✅`);
   } catch (e) {
     showToast("저장 실패: 연결을 확인하세요");
   }
   btn.disabled = false;
   btn.textContent = `${prescSession}회차 처방 저장`;
+}
+
+// ===== 자유 기록 =====
+let freeExercises = [];
+
+async function initFreeMode() {
+  try {
+    const { data } = await db
+      .from("workout_logs")
+      .select("*")
+      .eq("user_id", trackerUser.id)
+      .eq("date", todayKey())
+      .eq("type", "free")
+      .limit(1);
+    freeExercises = (data && data.length) ? (data[0].exercises || []) : [];
+  } catch (e) {
+    freeExercises = [];
+  }
+  renderFreeSection();
+}
+
+function renderFreeSection() {
+  const section = document.getElementById("free-section");
+  let html = "";
+
+  freeExercises.forEach((ex, i) => {
+    html += `<div class="card exercise-card free-ex-card" data-ex="${i}">
+      <div class="free-ex-header">
+        <input class="input free-ex-name" type="text" placeholder="운동 종목명" value="${escapeAttr(ex.name || "")}" />
+        <button class="free-ex-del" data-ex="${i}">×</button>
+      </div>`;
+    (ex.sets || []).forEach((s, si) => {
+      html += `<div class="free-set-row" data-set="${si}">
+        <span class="set-no">${si + 1}</span>
+        <input class="input mini free-set-kg" type="number" inputmode="decimal" placeholder="kg" value="${s.kg != null ? s.kg : ""}" />
+        <span>×</span>
+        <input class="input mini free-set-reps" type="number" inputmode="numeric" placeholder="회" value="${s.reps != null ? s.reps : ""}" />
+        <div class="free-result-btns">
+          <button class="result-btn ok ${s.result === "success" ? "active" : ""}" data-act="result" data-r="success" data-ex="${i}" data-set="${si}">✓</button>
+          <button class="result-btn no ${s.result === "fail" ? "active" : ""}" data-act="result" data-r="fail" data-ex="${i}" data-set="${si}">✗</button>
+        </div>
+        <button class="free-set-del" data-ex="${i}" data-set="${si}">×</button>
+      </div>`;
+    });
+    html += `<button class="btn btn-outline free-add-set" data-ex="${i}" style="margin-top:6px;font-size:13px;padding:6px 12px;">+ 세트 추가</button>
+    </div>`;
+  });
+
+  html += `<button class="btn btn-outline" id="free-add-ex" style="width:100%;margin:12px 0;">+ 종목 추가</button>`;
+  html += `<button class="btn btn-primary" id="free-save">자유 운동 저장</button>`;
+  section.innerHTML = html;
+
+  document.getElementById("free-add-ex").addEventListener("click", () => {
+    syncFreeFromDOM();
+    freeExercises.push({ name: "", sets: [{ kg: null, reps: null, result: null }] });
+    renderFreeSection();
+  });
+  document.querySelectorAll(".free-add-set").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      syncFreeFromDOM();
+      freeExercises[Number(btn.dataset.ex)].sets.push({ kg: null, reps: null, result: null });
+      renderFreeSection();
+    });
+  });
+  document.querySelectorAll(".free-ex-del").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      syncFreeFromDOM();
+      freeExercises.splice(Number(btn.dataset.ex), 1);
+      renderFreeSection();
+    });
+  });
+  document.querySelectorAll(".free-set-del").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      syncFreeFromDOM();
+      freeExercises[Number(btn.dataset.ex)].sets.splice(Number(btn.dataset.set), 1);
+      renderFreeSection();
+    });
+  });
+  document.querySelectorAll("[data-act='result']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      syncFreeFromDOM();
+      freeExercises[Number(btn.dataset.ex)].sets[Number(btn.dataset.set)].result = btn.dataset.r;
+      renderFreeSection();
+    });
+  });
+  document.getElementById("free-save").addEventListener("click", saveFreeWorkout);
+}
+
+function syncFreeFromDOM() {
+  document.querySelectorAll(".free-ex-card").forEach((card, i) => {
+    if (!freeExercises[i]) return;
+    freeExercises[i].name = card.querySelector(".free-ex-name").value.trim();
+    card.querySelectorAll(".free-set-row").forEach((row, si) => {
+      if (!freeExercises[i].sets[si]) return;
+      freeExercises[i].sets[si].kg = parseFloat(row.querySelector(".free-set-kg").value) || null;
+      freeExercises[i].sets[si].reps = parseInt(row.querySelector(".free-set-reps").value, 10) || null;
+    });
+  });
+}
+
+async function saveFreeWorkout() {
+  syncFreeFromDOM();
+  const valid = freeExercises.filter((e) => e.name);
+  if (!valid.length) { showToast("종목을 1개 이상 추가하세요"); return; }
+  const btn = document.getElementById("free-save");
+  btn.disabled = true;
+  btn.textContent = "저장 중…";
+  try {
+    const { data: existing } = await db
+      .from("workout_logs").select("id")
+      .eq("user_id", trackerUser.id).eq("date", todayKey()).eq("type", "free").limit(1);
+    if (existing && existing.length) {
+      await db.from("workout_logs").update({ exercises: valid }).eq("id", existing[0].id);
+    } else {
+      await db.from("workout_logs").insert({ user_id: trackerUser.id, date: todayKey(), day: 0, type: "free", exercises: valid });
+    }
+    showToast("자유 운동 저장 완료 💪");
+  } catch (e) {
+    showToast("저장 실패: 연결을 확인하세요");
+  }
+  btn.disabled = false;
+  btn.textContent = "자유 운동 저장";
+}
+
+// ===== 숙제 확인 =====
+async function initHomeworkMode() {
+  const section = document.getElementById("homework-section");
+  section.innerHTML = '<div class="loading">불러오는 중…</div>';
+  try {
+    const weekStart = ymd(mondayOf(new Date()));
+    const { data: programs } = await db
+      .from("programs").select("*")
+      .eq("user_id", trackerUser.id).eq("week_start", weekStart).eq("is_homework", true)
+      .order("session_number", { ascending: true });
+
+    if (!programs || !programs.length) {
+      section.innerHTML = '<div class="empty" style="padding:40px;text-align:center;">이번 주 숙제가 없어요 🎉</div>';
+      return;
+    }
+
+    const { data: logs } = await db
+      .from("workout_logs").select("day")
+      .eq("user_id", trackerUser.id).eq("date", todayKey()).eq("type", "homework");
+    const doneSet = new Set((logs || []).map((l) => l.day));
+
+    let html = "";
+    programs.forEach((p) => {
+      const isDone = doneSet.has(p.session_number);
+      html += `<div class="card exercise-card">
+        <div class="exercise-head">
+          <div>
+            <div class="name">${p.session_number}회차 숙제</div>
+            <div class="meta">${(p.exercises || []).map((e) => escapeHtml(e.name)).join(", ")}</div>
+          </div>
+          <span class="badge ${isDone ? "badge-done" : ""}">${isDone ? "완료 ✓" : "미완료"}</span>
+        </div>`;
+      (p.exercises || []).forEach((ex) => {
+        html += `<div class="homework-ex-row">
+          <span>${escapeHtml(ex.name)}</span>
+          <span class="homework-ex-detail">${ex.sets}세트 × ${ex.reps}회${ex.weight ? " · " + ex.weight + "kg" : ""}</span>
+        </div>`;
+      });
+      if (p.memo) html += `<div class="trainer-memo">📋 ${escapeHtml(p.memo)}</div>`;
+      html += `<button class="btn ${isDone ? "btn-outline" : "btn-primary"} homework-done-btn"
+        data-session="${p.session_number}" data-done="${isDone}" style="margin-top:12px;width:100%;">
+        ${isDone ? "완료 취소" : "완료했어요 ✓"}
+      </button></div>`;
+    });
+    section.innerHTML = html;
+
+    section.querySelectorAll(".homework-done-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const sessionNum = Number(btn.dataset.session);
+        const isDone = btn.dataset.done === "true";
+        btn.disabled = true;
+        try {
+          if (isDone) {
+            await db.from("workout_logs").delete()
+              .eq("user_id", trackerUser.id).eq("date", todayKey()).eq("type", "homework").eq("day", sessionNum);
+          } else {
+            await db.from("workout_logs").insert({ user_id: trackerUser.id, date: todayKey(), day: sessionNum, type: "homework", exercises: [] });
+          }
+          showToast(isDone ? "완료 취소했어요" : "숙제 완료! 💪");
+          await initHomeworkMode();
+        } catch (e) {
+          showToast("저장 실패: 연결을 확인하세요");
+          btn.disabled = false;
+        }
+      });
+    });
+  } catch (e) {
+    section.innerHTML = '<div class="empty">불러오지 못했습니다</div>';
+  }
 }
 
 // ===== 레슨 기록 =====

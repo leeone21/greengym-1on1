@@ -282,7 +282,7 @@ async function saveLessonLog(memberId, lessonDate, sessionNumber, exercises, mem
 }
 
 // (user_id, week_start, session_number) 조합으로 처방 upsert
-async function saveProgram(userId, weekStart, sessionNumber, exercises, memo) {
+async function saveProgram(userId, weekStart, sessionNumber, exercises, memo, isHomework = false) {
   const { data: existing } = await db
     .from("programs")
     .select("id")
@@ -294,7 +294,7 @@ async function saveProgram(userId, weekStart, sessionNumber, exercises, memo) {
   if (existing && existing.length) {
     const { error } = await db
       .from("programs")
-      .update({ exercises, memo })
+      .update({ exercises, memo, is_homework: isHomework })
       .eq("id", existing[0].id);
     if (error) throw error;
   } else {
@@ -304,6 +304,7 @@ async function saveProgram(userId, weekStart, sessionNumber, exercises, memo) {
       session_number: sessionNumber,
       exercises,
       memo,
+      is_homework: isHomework,
     });
     if (error) throw error;
   }
