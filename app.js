@@ -605,6 +605,10 @@ async function loadDietForDate(dateKey) {
   document.getElementById("diet-lunch").value = "";
   document.getElementById("diet-dinner").value = "";
   document.getElementById("diet-snack").value = "";
+  document.getElementById("diet-breakfast-time").value = "";
+  document.getElementById("diet-lunch-time").value = "";
+  document.getElementById("diet-dinner-time").value = "";
+  document.getElementById("diet-snack-time").value = "";
   document.getElementById("water-count").textContent = 0;
   document.getElementById("diet-date-label").textContent = formatKoreanDate(dateKey);
 
@@ -619,6 +623,10 @@ async function loadDietForDate(dateKey) {
       document.getElementById("diet-lunch").value = diet.lunch || "";
       document.getElementById("diet-dinner").value = diet.dinner || "";
       document.getElementById("diet-snack").value = diet.snack || "";
+      document.getElementById("diet-breakfast-time").value = diet.breakfast_time || "";
+      document.getElementById("diet-lunch-time").value = diet.lunch_time || "";
+      document.getElementById("diet-dinner-time").value = diet.dinner_time || "";
+      document.getElementById("diet-snack-time").value = diet.snack_time || "";
       waterCount = diet.water || 0;
     }
   } catch (e) {
@@ -671,6 +679,10 @@ async function initDietPage() {
         dinner: document.getElementById("diet-dinner").value.trim(),
         snack: document.getElementById("diet-snack").value.trim(),
         water: waterCount,
+        breakfast_time: document.getElementById("diet-breakfast-time").value || null,
+        lunch_time: document.getElementById("diet-lunch-time").value || null,
+        dinner_time: document.getElementById("diet-dinner-time").value || null,
+        snack_time: document.getElementById("diet-snack-time").value || null,
       });
       showToast("식단을 저장했어요 ✅");
     } catch (e) {

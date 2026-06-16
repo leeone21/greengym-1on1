@@ -422,7 +422,19 @@ body.timer-active .app { padding-top: 70px; }
 
 /* 식단 */
 .diet-field { margin-bottom: 14px; }
+.diet-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.diet-label-row label { font-size: 13px; font-weight: 700; }
 .diet-field label { display: block; font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.time-input {
+  background: #1A1D27;
+  color: #FFFFFF;
+  border: 1px solid #2A2D3A;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: inherit;
+}
+.time-input:focus { outline: none; border-color: #00E5A0; }
 .diet-field textarea {
   width: 100%;
   min-height: 56px;

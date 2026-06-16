@@ -75,3 +75,10 @@ CREATE POLICY "anon all workout"  ON workout_logs FOR ALL USING (true) WITH CHEC
 CREATE POLICY "anon all diet"     ON diet_logs    FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "anon all running"  ON running_logs FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "anon all programs" ON programs     FOR ALL USING (true) WITH CHECK (true);
+
+-- 식사 시간 컬럼 추가 마이그레이션 (Supabase SQL Editor에서 실행)
+ALTER TABLE diet_logs
+  ADD COLUMN IF NOT EXISTS breakfast_time TIME,
+  ADD COLUMN IF NOT EXISTS lunch_time TIME,
+  ADD COLUMN IF NOT EXISTS dinner_time TIME,
+  ADD COLUMN IF NOT EXISTS snack_time TIME;
