@@ -156,6 +156,35 @@ async function showHomeView(user) {
   } catch (e) {
     showToast("데이터를 불러오지 못했습니다");
   }
+
+  try {
+    const historyEl = document.getElementById("workout-history-list");
+    if (historyEl) historyEl.innerHTML = await renderMemberWorkoutHistory(user.id);
+  } catch (e) { /* 무시 */ }
+}
+
+async function renderMemberWorkoutHistory(userId) {
+  const { data: logs } = await db
+    .from("workout_logs")
+    .select("*")
+    .eq("user_id", userId)
+    .order("date", { ascending: false })
+    .limit(30);
+
+  if (!logs || !logs.length) return '<div class="empty">운동 기록이 없습니다</div>';
+
+  return logs.map((log) => {
+    const exercises = log.exercises || [];
+    const doneSets = countDoneSets(exercises);
+    const totalSets = exercises.reduce((s, e) => s + (e.sets || []).length, 0);
+    const names = exercises.map((e) => e.name).filter(Boolean).join(", ");
+    const typeLabel = log.day ? `${log.day}회차` : "자유기록";
+    return `<div class="history-row">
+      <div class="history-date">${log.date} · ${typeLabel}</div>
+      <div class="history-exercises">${escapeHtml(names) || "-"}</div>
+      <div class="history-sets">${doneSets} / ${totalSets} 세트 완료</div>
+    </div>`;
+  }).join("");
 }
 
 // 이번 달 고유 기록일 수
@@ -757,6 +786,160 @@ async function loadRunning() {
     .join("");
 }
 
+// ===== 종목 자동완성 =====
+let _exerciseList = null;
+
+async function loadExerciseList() {
+  if (_exerciseList) return _exerciseList;
+  try {
+    _exerciseList = await getExercises();
+  } catch (e) {
+    _exerciseList = [];
+  }
+  return _exerciseList;
+}
+
+// allowAdd: true=트레이너(직접추가 가능), false=회원(선택만)
+function renderExerciseInput(currentName, currentEquipment, exIndex, allowAdd = false) {
+  const list = _exerciseList || [];
+  const recentTags = list.slice(0, 8);
+
+  const tagHtml = recentTags.map((ex) =>
+    `<span class="ex-tag ${ex.name === currentName ? "active" : ""}"
+      data-name="${escapeAttr(ex.name)}">${escapeHtml(ex.name)}</span>`
+  ).join("");
+
+  const selectedEx = list.find((e) => e.name === currentName);
+  const equipmentOptions = selectedEx ? (selectedEx.allowed_equipment || []) : [];
+  const equipmentHtml = equipmentOptions.length
+    ? `<div class="ex-equipment-tags">${equipmentOptions.map((eq) =>
+        `<span class="eq-tag ${eq === currentEquipment ? "active" : ""}" data-eq="${escapeAttr(eq)}">${escapeHtml(eq)}</span>`
+      ).join("")}</div>`
+    : "";
+
+  return `<div class="ex-input-wrap" data-ex-index="${exIndex}">
+    <div class="ex-recent-tags">${tagHtml}</div>
+    <input class="input ex-search-input" type="text" placeholder="종목 검색"
+      autocomplete="off" value="${escapeAttr(currentName || "")}" />
+    <div class="ex-dropdown" style="display:none;"></div>
+    ${equipmentHtml}
+  </div>`;
+}
+
+function bindExerciseInputs(container, onSelect, allowAdd = false) {
+  container.querySelectorAll(".ex-input-wrap").forEach((wrap) => {
+    const input = wrap.querySelector(".ex-search-input");
+    const dropdown = wrap.querySelector(".ex-dropdown");
+    const tagArea = wrap.querySelector(".ex-recent-tags");
+
+    tagArea.querySelectorAll(".ex-tag").forEach((tag) => {
+      tag.addEventListener("click", () => selectExercise(wrap, tag.dataset.name, null, onSelect));
+    });
+
+    input.addEventListener("click", () => {
+      renderDropdown(wrap, input.value, allowAdd, onSelect);
+      dropdown.style.display = "block";
+    });
+    input.addEventListener("input", () => {
+      renderDropdown(wrap, input.value, allowAdd, onSelect);
+      dropdown.style.display = "block";
+    });
+    input.addEventListener("blur", () => {
+      setTimeout(() => { dropdown.style.display = "none"; }, 150);
+    });
+  });
+}
+
+function renderDropdown(wrap, query, allowAdd, onSelect) {
+  const dropdown = wrap.querySelector(".ex-dropdown");
+  const list = _exerciseList || [];
+  const q = (query || "").trim();
+  const categories = ["가슴", "등", "어깨", "하체", "팔", "코어", "유산소"];
+
+  let html = "";
+  categories.forEach((cat) => {
+    const items = list.filter((e) => e.category === cat && (!q || e.name.includes(q)));
+    if (!items.length) return;
+    html += `<div class="ex-dropdown-category">${cat}</div>`;
+    items.forEach((ex) => {
+      const eq = JSON.stringify(ex.allowed_equipment || []).replace(/'/g, "&#39;");
+      html += `<div class="ex-dropdown-item" data-name="${escapeAttr(ex.name)}" data-equipment='${eq}'>${escapeHtml(ex.name)}</div>`;
+    });
+  });
+
+  const others = list.filter((e) => !categories.includes(e.category) && (!q || e.name.includes(q)));
+  if (others.length) {
+    html += `<div class="ex-dropdown-category">기타</div>`;
+    others.forEach((ex) => {
+      const eq = JSON.stringify(ex.allowed_equipment || []).replace(/'/g, "&#39;");
+      html += `<div class="ex-dropdown-item" data-name="${escapeAttr(ex.name)}" data-equipment='${eq}'>${escapeHtml(ex.name)}</div>`;
+    });
+  }
+
+  if (allowAdd && q && !list.find((e) => e.name === q)) {
+    html += `<div class="ex-dropdown-item ex-dropdown-custom" data-name="${escapeAttr(q)}" data-equipment='[]'>"${escapeHtml(q)}" 직접 추가 →</div>`;
+  }
+
+  dropdown.innerHTML = html || `<div class="ex-dropdown-empty">검색 결과 없음</div>`;
+
+  dropdown.querySelectorAll(".ex-dropdown-item").forEach((item) => {
+    item.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      const name = item.dataset.name;
+      dropdown.style.display = "none";
+      if (item.classList.contains("ex-dropdown-custom") && allowAdd) {
+        saveCustomExercise(name).then(() => selectExercise(wrap, name, null, onSelect));
+      } else {
+        selectExercise(wrap, name, null, onSelect);
+      }
+    });
+  });
+}
+
+function selectExercise(wrap, name, equipment, onSelect) {
+  const input = wrap.querySelector(".ex-search-input");
+  if (input) input.value = name;
+
+  wrap.querySelectorAll(".ex-tag").forEach((t) =>
+    t.classList.toggle("active", t.dataset.name === name));
+
+  const list = _exerciseList || [];
+  const ex = list.find((e) => e.name === name);
+  const equipmentOptions = ex ? (ex.allowed_equipment || []) : [];
+
+  let eqArea = wrap.querySelector(".ex-equipment-tags");
+  if (equipmentOptions.length) {
+    const eqHtml = equipmentOptions.map((eq) =>
+      `<span class="eq-tag ${eq === equipment ? "active" : ""}" data-eq="${escapeAttr(eq)}">${escapeHtml(eq)}</span>`
+    ).join("");
+    if (!eqArea) {
+      eqArea = document.createElement("div");
+      eqArea.className = "ex-equipment-tags";
+      wrap.appendChild(eqArea);
+    }
+    eqArea.innerHTML = eqHtml;
+    eqArea.querySelectorAll(".eq-tag").forEach((tag) => {
+      tag.addEventListener("click", () => {
+        eqArea.querySelectorAll(".eq-tag").forEach((t) => t.classList.toggle("active", t === tag));
+        onSelect(wrap, name, tag.dataset.eq);
+      });
+    });
+  } else if (eqArea) {
+    eqArea.remove();
+  }
+
+  onSelect(wrap, name, equipment);
+}
+
+async function saveCustomExercise(name, category = "기타") {
+  try {
+    const ex = await addExercise(name, category, []);
+    if (ex && _exerciseList) _exerciseList.unshift(ex);
+  } catch (e) {
+    console.warn("종목 추가 실패:", e);
+  }
+}
+
 // ===== 트레이너 대시보드 =====
 const DASH_SESSION_KEY = "greengym_trainer";
 let detailMember = null;
@@ -926,6 +1109,7 @@ function initPrescribe() {
 }
 
 async function loadPrescription() {
+  await loadExerciseList();
   const editor = document.getElementById("presc-editor");
   editor.innerHTML = '<div class="loading">불러오는 중…</div>';
   try {
@@ -934,6 +1118,7 @@ async function loadPrescription() {
     if (existing) {
       prescExercises = (existing.exercises || []).map((e) => ({
         name: e.name || "",
+        equipment: e.equipment || null,
         sets: e.sets || 4,
         reps: e.reps || "10~12",
         weight: e.weight || 0,
@@ -973,14 +1158,8 @@ function renderPrescEditor() {
   const editor = document.getElementById("presc-editor");
   let html = "";
   prescExercises.forEach((ex, i) => {
-    const custom = ex.name && !isInCatalog(ex.name);
     html += `<div class="presc-ex" data-i="${i}">
-      <div class="presc-row">
-        <select class="input presc-name">${buildExerciseOptions(ex.name)}</select>
-      </div>
-      <div class="presc-row presc-custom" style="${custom ? "" : "display:none;"}">
-        <input class="input presc-customname" type="text" placeholder="종목 직접 입력" value="${custom ? escapeAttr(ex.name) : ""}" />
-      </div>
+      ${renderExerciseInput(ex.name, ex.equipment || null, i, true)}
       <div class="presc-grid">
         <div><label>세트</label><input class="input presc-sets" type="number" inputmode="numeric" value="${ex.sets}" /></div>
         <div><label>횟수</label><input class="input presc-reps" type="text" value="${escapeAttr(ex.reps)}" placeholder="10~12" /></div>
@@ -999,14 +1178,14 @@ function renderPrescEditor() {
   html += `<button class="btn btn-primary" id="presc-save">${prescSession}회차 처방 저장</button>`;
   editor.innerHTML = html;
 
-  // 종목 select 변경 → 직접입력 토글
-  editor.querySelectorAll(".presc-name").forEach((sel) => {
-    sel.addEventListener("change", () => {
-      const row = sel.closest(".presc-ex");
-      const customRow = row.querySelector(".presc-custom");
-      customRow.style.display = sel.value === "__custom__" ? "block" : "none";
-    });
-  });
+  bindExerciseInputs(editor, (wrap, name, equipment) => {
+    const i = Number(wrap.dataset.exIndex);
+    if (prescExercises[i]) {
+      prescExercises[i].name = name;
+      prescExercises[i].equipment = equipment || null;
+    }
+  }, true);
+
   editor.querySelectorAll(".presc-del").forEach((btn) => {
     btn.addEventListener("click", () => {
       syncPrescFromDOM();
@@ -1016,7 +1195,7 @@ function renderPrescEditor() {
   });
   document.getElementById("presc-add").addEventListener("click", () => {
     syncPrescFromDOM();
-    prescExercises.push({ name: "", sets: 4, reps: "10~12", weight: 0, warmup: false });
+    prescExercises.push({ name: "", equipment: null, sets: 4, reps: "10~12", weight: 0, warmup: false });
     renderPrescEditor();
   });
   document.getElementById("presc-save").addEventListener("click", savePrescription);
@@ -1024,12 +1203,14 @@ function renderPrescEditor() {
 
 // DOM 입력값을 prescExercises/prescMemo 로 동기화
 function syncPrescFromDOM() {
+  const prev = prescExercises.slice();
   const rows = document.querySelectorAll("#presc-editor .presc-ex");
-  prescExercises = Array.from(rows).map((row) => {
-    const sel = row.querySelector(".presc-name").value;
-    const name = sel === "__custom__" ? row.querySelector(".presc-customname").value.trim() : sel;
+  prescExercises = Array.from(rows).map((row, i) => {
+    const nameInput = row.querySelector(".ex-search-input");
+    const activeEq = row.querySelector(".eq-tag.active");
     return {
-      name,
+      name: nameInput ? nameInput.value.trim() : "",
+      equipment: activeEq ? activeEq.dataset.eq : (prev[i] ? prev[i].equipment : null),
       sets: parseInt(row.querySelector(".presc-sets").value, 10) || 1,
       reps: row.querySelector(".presc-reps").value.trim(),
       weight: parseFloat(row.querySelector(".presc-weight").value) || 0,
@@ -1058,6 +1239,80 @@ async function savePrescription() {
   }
   btn.disabled = false;
   btn.textContent = `${prescSession}회차 처방 저장`;
+}
+
+// ===== 종목 관리 (트레이너) =====
+function toggleExerciseManager() {
+  const managerView = document.getElementById("exercise-manager-view");
+  const memberListView = document.getElementById("member-list-view");
+  const isHidden = managerView.style.display === "none";
+  managerView.style.display = isHidden ? "block" : "none";
+  memberListView.style.display = isHidden ? "none" : "block";
+  if (isHidden) renderExerciseManager();
+}
+
+async function renderExerciseManager() {
+  const container = document.getElementById("exercise-manager-container");
+  container.innerHTML = '<div class="loading">불러오는 중…</div>';
+  _exerciseList = null; // 항상 최신 목록 조회
+  await loadExerciseList();
+  const list = _exerciseList || [];
+  const categories = ["가슴", "등", "어깨", "하체", "팔", "코어", "유산소", "기타"];
+
+  let html = `<div class="ex-manager-header"><h3>종목 관리</h3><span style="font-size:13px;color:var(--color-text-muted);">${list.length}개 활성</span></div>`;
+
+  categories.forEach((cat) => {
+    const items = list.filter((e) => e.category === cat);
+    if (!items.length) return;
+    html += `<div class="ex-manager-category"><strong>${cat}</strong>`;
+    items.forEach((ex) => {
+      html += `<div class="ex-manager-row">
+        <span style="flex:1;">${escapeHtml(ex.name)}</span>
+        <span class="ex-manager-eq">${(ex.allowed_equipment || []).join(", ") || "장비 없음"}</span>
+        <button class="ex-manager-toggle ${ex.is_active ? "" : "inactive"}"
+          data-id="${ex.id}" data-active="${ex.is_active}">
+          ${ex.is_active ? "활성" : "비활성"}
+        </button>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+
+  html += `<div class="ex-add-form">
+    <input class="input" id="new-ex-name" type="text" placeholder="새 종목명" />
+    <select class="input" id="new-ex-category">
+      ${categories.map((c) => `<option value="${c}">${c}</option>`).join("")}
+    </select>
+    <button class="btn btn-primary" id="new-ex-save">종목 추가</button>
+  </div>`;
+
+  container.innerHTML = html;
+
+  container.querySelectorAll(".ex-manager-toggle").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const isActive = btn.dataset.active === "true";
+      try {
+        await toggleExercise(btn.dataset.id, !isActive);
+        await renderExerciseManager();
+      } catch (e) {
+        showToast("변경 실패: 연결을 확인하세요");
+      }
+    });
+  });
+
+  document.getElementById("new-ex-save").addEventListener("click", async () => {
+    const name = document.getElementById("new-ex-name").value.trim();
+    const category = document.getElementById("new-ex-category").value;
+    if (!name) { showToast("종목명을 입력하세요"); return; }
+    try {
+      await addExercise(name, category, []);
+      _exerciseList = null;
+      showToast(`${name} 추가 완료`);
+      await renderExerciseManager();
+    } catch (e) {
+      showToast("추가 실패: 이미 존재하는 종목명일 수 있습니다");
+    }
+  });
 }
 
 // ===== HTML 이스케이프 =====

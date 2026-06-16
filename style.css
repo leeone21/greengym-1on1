@@ -596,3 +596,71 @@ body.timer-active .app { padding-top: 70px; }
   cursor: pointer;
 }
 select.input { appearance: none; -webkit-appearance: none; }
+
+/* ===== 종목 자동완성 ===== */
+.ex-input-wrap { position: relative; margin-bottom: 8px; }
+
+.ex-recent-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.ex-tag {
+  padding: 5px 12px; border-radius: 20px;
+  background: var(--color-bg); color: var(--color-text-muted);
+  font-size: 13px; cursor: pointer;
+  border: 1.5px solid var(--color-border); transition: all 0.15s;
+}
+.ex-tag.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); font-weight: 700; }
+
+.ex-equipment-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.eq-tag {
+  padding: 4px 10px; border-radius: 14px;
+  background: var(--color-bg); color: var(--color-text-muted);
+  font-size: 12px; cursor: pointer;
+  border: 1.5px solid var(--color-border);
+}
+.eq-tag.active { background: var(--color-primary-dim); color: var(--color-primary); border-color: var(--color-primary); font-weight: 700; }
+
+.ex-dropdown {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--color-surface); border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-card); z-index: 100;
+  max-height: 260px; overflow-y: auto;
+  box-shadow: var(--shadow-card);
+}
+.ex-dropdown-category {
+  padding: 8px 16px 4px; font-size: 11px; color: var(--color-text-muted);
+  font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  border-bottom: 1px solid var(--color-border); position: sticky; top: 0;
+  background: var(--color-surface);
+}
+.ex-dropdown-item {
+  padding: 11px 16px; font-size: 14px; color: var(--color-text);
+  cursor: pointer; border-bottom: 1px solid var(--color-bg);
+}
+.ex-dropdown-item:active { background: var(--color-bg); }
+.ex-dropdown-custom { color: var(--color-primary); font-weight: 600; }
+.ex-dropdown-empty { padding: 16px; text-align: center; color: var(--color-text-muted); font-size: 14px; }
+
+/* ===== 운동기록 히스토리 ===== */
+.history-row { padding: 12px 0; border-bottom: 1px solid var(--color-border); }
+.history-row:last-child { border-bottom: none; }
+.history-date { font-size: 12px; color: var(--color-text-muted); margin-bottom: 4px; font-variant-numeric: tabular-nums; }
+.history-exercises { font-size: 14px; color: var(--color-text); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-sets { font-size: 12px; color: var(--color-primary); font-weight: 600; }
+
+/* ===== 종목 관리 ===== */
+.ex-manager-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.ex-manager-header h3 { font-size: 16px; font-weight: 700; }
+.ex-manager-category { margin-bottom: 12px; }
+.ex-manager-category strong { font-size: 11px; color: var(--color-text-muted); display: block; margin-bottom: 4px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+.ex-manager-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 0; border-bottom: 1px solid var(--color-border); font-size: 14px;
+}
+.ex-manager-row:last-child { border-bottom: none; }
+.ex-manager-eq { flex: 1; color: var(--color-text-muted); font-size: 12px; }
+.ex-manager-toggle {
+  padding: 4px 10px; border-radius: 8px; font-size: 12px;
+  border: 1px solid var(--color-border); background: var(--color-bg);
+  color: var(--color-text); cursor: pointer;
+}
+.ex-manager-toggle.inactive { opacity: 0.4; }
+.ex-add-form { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--color-border); }

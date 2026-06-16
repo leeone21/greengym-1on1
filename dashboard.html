@@ -32,10 +32,21 @@
     </header>
 
     <main class="content">
-      <!-- 회원 목록 -->
+      <!-- 탑 액션 -->
       <div id="member-list-view">
-        <div class="section-title">👥 전체 회원 <span id="member-count" style="color:var(--color-accent);"></span></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+          <div class="section-title" style="margin-bottom:0;">👥 전체 회원 <span id="member-count" style="color:var(--color-accent);"></span></div>
+          <button class="btn btn-outline" id="ex-manager-btn" onclick="toggleExerciseManager()" style="padding:7px 14px;font-size:13px;">종목 관리</button>
+        </div>
         <div class="card" id="member-list"><div class="loading">불러오는 중…</div></div>
+      </div>
+
+      <!-- 종목 관리 -->
+      <div id="exercise-manager-view" style="display:none;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <button class="back-btn" onclick="toggleExerciseManager()" style="margin-bottom:0;">← 돌아가기</button>
+        </div>
+        <div class="card" id="exercise-manager-container"><div class="loading">불러오는 중…</div></div>
       </div>
 
       <!-- 회원 상세 -->

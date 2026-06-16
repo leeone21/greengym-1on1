@@ -82,3 +82,58 @@ ALTER TABLE diet_logs
   ADD COLUMN IF NOT EXISTS lunch_time TIME,
   ADD COLUMN IF NOT EXISTS dinner_time TIME,
   ADD COLUMN IF NOT EXISTS snack_time TIME;
+
+-- 종목 마스터 테이블
+CREATE TABLE IF NOT EXISTS exercises (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  category TEXT NOT NULL,
+  allowed_equipment TEXT[] DEFAULT '{}',
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE exercises ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "exercises_read" ON exercises;
+CREATE POLICY "exercises_read" ON exercises FOR SELECT USING (true);
+DROP POLICY IF EXISTS "exercises_write" ON exercises;
+CREATE POLICY "exercises_write" ON exercises FOR ALL USING (true) WITH CHECK (true);
+
+INSERT INTO exercises (name, category, allowed_equipment) VALUES
+  ('벤치프레스',                   '가슴', ARRAY['바벨','덤벨','머신']),
+  ('인클라인 벤치프레스',           '가슴', ARRAY['바벨','덤벨','머신']),
+  ('딥스',                         '가슴', ARRAY['맨몸','밴드']),
+  ('덤벨 플라이',                   '가슴', ARRAY['덤벨','케이블']),
+  ('케이블 크로스오버',             '가슴', ARRAY['케이블']),
+  ('컨벤셔널 데드리프트',           '등',   ARRAY['바벨','덤벨']),
+  ('루마니안 데드리프트',           '등',   ARRAY['바벨','덤벨']),
+  ('랫풀다운',                     '등',   ARRAY['머신','케이블']),
+  ('바벨 로우',                    '등',   ARRAY['바벨']),
+  ('덤벨 로우',                    '등',   ARRAY['덤벨']),
+  ('시티드 케이블 로우',            '등',   ARRAY['케이블','머신']),
+  ('풀업',                         '등',   ARRAY['맨몸','밴드']),
+  ('오버헤드 프레스',               '어깨', ARRAY['바벨','덤벨','머신']),
+  ('숄더프레스',                   '어깨', ARRAY['바벨','덤벨','머신']),
+  ('사이드 레터럴 레이즈',          '어깨', ARRAY['덤벨','케이블','밴드']),
+  ('페이스 풀',                    '어깨', ARRAY['케이블','밴드']),
+  ('업라이트 로우',                 '어깨', ARRAY['바벨','덤벨','케이블']),
+  ('스쿼트',                       '하체', ARRAY['바벨','덤벨','맨몸','머신']),
+  ('프론트 스쿼트',                 '하체', ARRAY['바벨','덤벨']),
+  ('레그프레스',                   '하체', ARRAY['머신']),
+  ('런지',                         '하체', ARRAY['바벨','덤벨','맨몸','밴드']),
+  ('레그 익스텐션',                 '하체', ARRAY['머신']),
+  ('레그 컬',                      '하체', ARRAY['머신']),
+  ('힙 쓰러스트',                   '하체', ARRAY['바벨','덤벨','밴드']),
+  ('카프 레이즈',                   '하체', ARRAY['바벨','덤벨','머신','맨몸']),
+  ('바벨 컬',                      '팔',   ARRAY['바벨']),
+  ('덤벨 컬',                      '팔',   ARRAY['덤벨']),
+  ('해머 컬',                      '팔',   ARRAY['덤벨','케이블']),
+  ('트라이셉스 푸시다운',            '팔',   ARRAY['케이블','밴드']),
+  ('오버헤드 트라이셉스 익스텐션',   '팔',   ARRAY['덤벨','케이블','바벨']),
+  ('플랭크',                       '코어', ARRAY['맨몸','밴드']),
+  ('크런치',                       '코어', ARRAY['맨몸','머신']),
+  ('레그 레이즈',                   '코어', ARRAY['맨몸']),
+  ('트레드밀',                     '유산소', ARRAY[]::TEXT[]),
+  ('사이클',                       '유산소', ARRAY[]::TEXT[]),
+  ('로잉머신',                     '유산소', ARRAY[]::TEXT[])
+ON CONFLICT (name) DO NOTHING;

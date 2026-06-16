@@ -199,6 +199,36 @@ async function getPrograms(userId, weekStart) {
   return data || [];
 }
 
+// ===== 종목 마스터 =====
+async function getExercises() {
+  const { data, error } = await db
+    .from("exercises")
+    .select("*")
+    .eq("is_active", true)
+    .order("category")
+    .order("name");
+  if (error) throw error;
+  return data || [];
+}
+
+async function addExercise(name, category, allowedEquipment = []) {
+  const { data, error } = await db
+    .from("exercises")
+    .insert({ name, category, allowed_equipment: allowedEquipment })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+async function toggleExercise(id, isActive) {
+  const { error } = await db
+    .from("exercises")
+    .update({ is_active: isActive })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 // (user_id, week_start, session_number) 조합으로 처방 upsert
 async function saveProgram(userId, weekStart, sessionNumber, exercises, memo) {
   const { data: existing } = await db
