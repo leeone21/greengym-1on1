@@ -178,16 +178,12 @@ async function initTrackerPage() {
   document.getElementById("today-date").textContent = formatKoreanDate(todayKey());
 
   initTimer();
-  document.getElementById("finish-btn").addEventListener("click", saveCurrentSession);
 
   // 모드 탭 전환
   document.querySelectorAll(".mode-tab").forEach((tab) => {
     tab.addEventListener("click", async () => {
       const mode = tab.dataset.mode;
       document.querySelectorAll(".mode-tab").forEach((t) => t.classList.toggle("active", t === tab));
-      document.getElementById("tab-bar").style.display = mode === "program" ? "flex" : "none";
-      document.getElementById("exercise-list").style.display = mode === "program" ? "block" : "none";
-      document.getElementById("finish-btn").style.display = mode === "program" ? "block" : "none";
       document.getElementById("free-section").style.display = mode === "free" ? "block" : "none";
       document.getElementById("homework-section").style.display = mode === "homework" ? "block" : "none";
       if (mode === "free") await initFreeMode();
@@ -195,10 +191,8 @@ async function initTrackerPage() {
     });
   });
 
-  document.getElementById("exercise-list").innerHTML = '<div class="loading">불러오는 중…</div>';
-  trackerSessions = await loadTrackerSessions(trackerUser);
-  buildSessionTabs();
-  await selectSession(trackerSessions[0].key);
+  // 기본: 자유 기록
+  await initFreeMode();
 }
 
 // 이번 주 처방이 있으면 처방 세션, 없으면 기본 프로그램
