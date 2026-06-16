@@ -664,3 +664,11 @@ select.input { appearance: none; -webkit-appearance: none; }
 }
 .ex-manager-toggle.inactive { opacity: 0.4; }
 .ex-add-form { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--color-border); }
+
+/* 자유기록 / 레슨 세트 입력 */
+.free-set-rows { margin: 8px 0; }
+.free-set-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.free-set-row .set-no { width: 20px; font-size: 13px; color: var(--color-text-muted); text-align: center; }
+.free-ex-controls { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.free-ex-controls .btn { flex: 1; padding: 8px; font-size: 13px; }
+.free-ex-memo { margin-top: 8px; resize: none; width: 100%; }
