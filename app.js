@@ -597,14 +597,23 @@ function stopRestTimer() {
 }
 
 // ===== 식단 =====
-let dietUser = null, waterCount = 0;
-async function initDietPage() {
-  dietUser = requireAuth();
-  if (!dietUser) return;
-  document.getElementById("today-date").textContent = formatKoreanDate(todayKey());
+let dietUser = null, waterCount = 0, dietDate = null;
+
+async function loadDietForDate(dateKey) {
+  waterCount = 0;
+  document.getElementById("diet-breakfast").value = "";
+  document.getElementById("diet-lunch").value = "";
+  document.getElementById("diet-dinner").value = "";
+  document.getElementById("diet-snack").value = "";
+  document.getElementById("water-count").textContent = 0;
+  document.getElementById("diet-date-label").textContent = formatKoreanDate(dateKey);
+
+  const nextBtn = document.getElementById("diet-next-day");
+  nextBtn.disabled = dateKey >= todayKey();
+  nextBtn.style.opacity = dateKey >= todayKey() ? "0.3" : "1";
 
   try {
-    const diet = await getDiet(dietUser.id, todayKey());
+    const diet = await getDiet(dietUser.id, dateKey);
     if (diet) {
       document.getElementById("diet-breakfast").value = diet.breakfast || "";
       document.getElementById("diet-lunch").value = diet.lunch || "";
@@ -616,6 +625,31 @@ async function initDietPage() {
     showToast("기록을 불러오지 못했습니다");
   }
   document.getElementById("water-count").textContent = waterCount;
+}
+
+function shiftDate(dateKey, days) {
+  const d = new Date(dateKey + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return ymd(d);
+}
+
+async function initDietPage() {
+  dietUser = requireAuth();
+  if (!dietUser) return;
+  dietDate = todayKey();
+  document.getElementById("today-date").textContent = "";
+
+  await loadDietForDate(dietDate);
+
+  document.getElementById("diet-prev-day").addEventListener("click", async () => {
+    dietDate = shiftDate(dietDate, -1);
+    await loadDietForDate(dietDate);
+  });
+  document.getElementById("diet-next-day").addEventListener("click", async () => {
+    if (dietDate >= todayKey()) return;
+    dietDate = shiftDate(dietDate, 1);
+    await loadDietForDate(dietDate);
+  });
 
   document.getElementById("water-plus").addEventListener("click", () => {
     waterCount++;
@@ -631,7 +665,7 @@ async function initDietPage() {
     btn.disabled = true;
     btn.textContent = "저장 중…";
     try {
-      await saveDiet(dietUser.id, todayKey(), {
+      await saveDiet(dietUser.id, dietDate, {
         breakfast: document.getElementById("diet-breakfast").value.trim(),
         lunch: document.getElementById("diet-lunch").value.trim(),
         dinner: document.getElementById("diet-dinner").value.trim(),
