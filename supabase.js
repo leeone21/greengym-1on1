@@ -199,6 +199,88 @@ async function getPrograms(userId, weekStart) {
   return data || [];
 }
 
+// ===== 레슨 기록 =====
+async function getLessonDatesOfMonth(memberId, year, month) {
+  const from = `${year}-${String(month).padStart(2, "0")}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const to = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+  const { data } = await db
+    .from("lesson_logs")
+    .select("lesson_date")
+    .eq("member_id", memberId)
+    .gte("lesson_date", from)
+    .lte("lesson_date", to);
+  return [...new Set((data || []).map((r) => r.lesson_date))];
+}
+
+async function getLessonSessionsOfDate(memberId, lessonDate) {
+  const { data } = await db
+    .from("lesson_logs")
+    .select("session_number")
+    .eq("member_id", memberId)
+    .eq("lesson_date", lessonDate)
+    .order("session_number", { ascending: true });
+  return (data || []).map((r) => r.session_number);
+}
+
+async function getLessonLog(memberId, lessonDate, sessionNumber) {
+  const { data: logs } = await db
+    .from("lesson_logs")
+    .select("*")
+    .eq("member_id", memberId)
+    .eq("lesson_date", lessonDate)
+    .eq("session_number", sessionNumber)
+    .limit(1);
+  if (!logs || !logs.length) return { log: null, exercises: [] };
+  const log = logs[0];
+  const { data: exercises } = await db
+    .from("lesson_exercises")
+    .select("*")
+    .eq("lesson_log_id", log.id)
+    .order("order_index", { ascending: true });
+  return { log, exercises: exercises || [] };
+}
+
+async function saveLessonLog(memberId, lessonDate, sessionNumber, exercises, memo) {
+  const { data: existing } = await db
+    .from("lesson_logs")
+    .select("id")
+    .eq("member_id", memberId)
+    .eq("lesson_date", lessonDate)
+    .eq("session_number", sessionNumber)
+    .limit(1);
+
+  let logId;
+  if (existing && existing.length) {
+    logId = existing[0].id;
+    const { error } = await db
+      .from("lesson_logs")
+      .update({ memo, updated_at: new Date().toISOString() })
+      .eq("id", logId);
+    if (error) throw error;
+    await db.from("lesson_exercises").delete().eq("lesson_log_id", logId);
+  } else {
+    const { data: created, error } = await db
+      .from("lesson_logs")
+      .insert({ member_id: memberId, lesson_date: lessonDate, session_number: sessionNumber, memo })
+      .select()
+      .single();
+    if (error) throw error;
+    logId = created.id;
+  }
+
+  if (exercises.length) {
+    const rows = exercises.map((ex, i) => ({
+      lesson_log_id: logId,
+      exercise_name: ex.exercise_name,
+      order_index: i,
+      sets: ex.sets,
+    }));
+    const { error } = await db.from("lesson_exercises").insert(rows);
+    if (error) throw error;
+  }
+}
+
 // (user_id, week_start, session_number) 조합으로 처방 upsert
 async function saveProgram(userId, weekStart, sessionNumber, exercises, memo) {
   const { data: existing } = await db

@@ -584,3 +584,62 @@ body.timer-active .app { padding-top: 70px; }
   cursor: pointer;
 }
 select.input { appearance: none; -webkit-appearance: none; }
+
+/* ===== 레슨 기록 캘린더 ===== */
+.lesson-cal { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: var(--shadow-card); }
+.cal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.cal-header span { font-size: 15px; font-weight: 800; color: var(--color-text); }
+.cal-header button { background: none; border: none; font-size: 22px; color: var(--color-primary); padding: 0 8px; cursor: pointer; line-height: 1; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-dow { text-align: center; font-size: 11px; font-weight: 700; color: var(--color-text-muted); padding: 4px 0; }
+.cal-cell {
+  min-height: 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+.cal-cell:empty { cursor: default; }
+.cal-cell.today { border: 2px solid var(--color-primary); font-weight: 800; }
+.cal-cell.selected { background: var(--color-primary); color: #fff; }
+.cal-cell.selected .cal-dot { background: #fff; }
+.cal-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--color-accent, #2D6A4F); margin-top: 2px; }
+
+/* ===== 레슨 종목 에디터 ===== */
+.lesson-ex-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-card);
+}
+.lesson-ex-header { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.lesson-ex-header .input { flex: 1; }
+.lesson-ex-del {
+  background: none; border: none; color: var(--color-danger); font-size: 20px;
+  font-weight: 700; cursor: pointer; padding: 0 4px; line-height: 1;
+}
+.lesson-set-row {
+  display: grid;
+  grid-template-columns: 36px 1fr 16px 1fr 24px;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.lesson-set-num { font-size: 12px; font-weight: 700; color: var(--color-text-muted); text-align: center; }
+.lesson-set-x { text-align: center; font-size: 13px; color: var(--color-text-muted); }
+.lesson-set-del {
+  background: none; border: none; color: var(--color-text-muted); font-size: 16px;
+  cursor: pointer; padding: 0; line-height: 1;
+}
+.lesson-add-set {
+  font-size: 12px; padding: 5px 10px; margin-top: 4px;
+}
+.lesson-set-row .input { padding: 8px 6px; text-align: center; }

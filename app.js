@@ -843,8 +843,10 @@ function switchDetailMode(mode) {
     t.classList.toggle("active", t.dataset.mode === mode));
   document.getElementById("records-mode").style.display = mode === "records" ? "block" : "none";
   document.getElementById("prescribe-mode").style.display = mode === "prescribe" ? "block" : "none";
+  document.getElementById("lesson-mode").style.display = mode === "lesson" ? "block" : "none";
   if (mode === "records") renderRecords();
-  else initPrescribe();
+  else if (mode === "prescribe") initPrescribe();
+  else if (mode === "lesson") initLesson();
 }
 
 // ----- 기록 조회 -----
@@ -1046,6 +1048,239 @@ async function savePrescription() {
   }
   btn.disabled = false;
   btn.textContent = `${prescSession}회차 처방 저장`;
+}
+
+// ===== 레슨 기록 =====
+let lessonCalYear, lessonCalMonth;
+let lessonDate = null;
+let lessonSession = 1;
+let lessonExercises = [];
+let lessonMemo = "";
+let lessonDatesCache = [];
+let lessonSessionsCache = [];
+
+async function initLesson() {
+  const today = new Date();
+  lessonCalYear = today.getFullYear();
+  lessonCalMonth = today.getMonth() + 1;
+  lessonDate = todayKey();
+  lessonSession = 1;
+  lessonExercises = [];
+  lessonMemo = "";
+  await renderLessonCalendar();
+  await loadLessonSessionTabs();
+}
+
+async function renderLessonCalendar() {
+  const container = document.getElementById("lesson-calendar");
+  try {
+    lessonDatesCache = await getLessonDatesOfMonth(detailMember.id, lessonCalYear, lessonCalMonth);
+  } catch (e) {
+    lessonDatesCache = [];
+  }
+
+  const firstDow = new Date(lessonCalYear, lessonCalMonth - 1, 1).getDay();
+  const totalDays = new Date(lessonCalYear, lessonCalMonth, 0).getDate();
+  const todayStr = todayKey();
+
+  let html = `<div class="lesson-cal">
+    <div class="cal-header">
+      <button type="button" id="cal-prev">‹</button>
+      <span>${lessonCalYear}년 ${lessonCalMonth}월</span>
+      <button type="button" id="cal-next">›</button>
+    </div>
+    <div class="cal-grid">
+      <div class="cal-dow">일</div><div class="cal-dow">월</div><div class="cal-dow">화</div>
+      <div class="cal-dow">수</div><div class="cal-dow">목</div><div class="cal-dow">금</div><div class="cal-dow">토</div>`;
+
+  for (let i = 0; i < firstDow; i++) html += `<div class="cal-cell"></div>`;
+
+  for (let d = 1; d <= totalDays; d++) {
+    const ds = `${lessonCalYear}-${String(lessonCalMonth).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const cls = [
+      "cal-cell",
+      ds === todayStr ? "today" : "",
+      ds === lessonDate ? "selected" : "",
+      lessonDatesCache.includes(ds) ? "has-lesson" : "",
+    ].filter(Boolean).join(" ");
+    html += `<div class="${cls}" data-date="${ds}">${d}${lessonDatesCache.includes(ds) ? '<div class="cal-dot"></div>' : ""}</div>`;
+  }
+
+  html += `</div></div>`;
+  container.innerHTML = html;
+
+  container.querySelectorAll(".cal-cell[data-date]").forEach((cell) => {
+    cell.addEventListener("click", async () => {
+      lessonDate = cell.dataset.date;
+      lessonSession = 1;
+      await renderLessonCalendar();
+      await loadLessonSessionTabs();
+    });
+  });
+
+  document.getElementById("cal-prev").addEventListener("click", async () => {
+    lessonCalMonth--;
+    if (lessonCalMonth < 1) { lessonCalMonth = 12; lessonCalYear--; }
+    await renderLessonCalendar();
+  });
+  document.getElementById("cal-next").addEventListener("click", async () => {
+    lessonCalMonth++;
+    if (lessonCalMonth > 12) { lessonCalMonth = 1; lessonCalYear++; }
+    await renderLessonCalendar();
+  });
+}
+
+async function loadLessonSessionTabs() {
+  try {
+    lessonSessionsCache = await getLessonSessionsOfDate(detailMember.id, lessonDate);
+  } catch (e) {
+    lessonSessionsCache = [];
+  }
+  if (!lessonSessionsCache.includes(lessonSession)) {
+    lessonSession = lessonSessionsCache.length ? lessonSessionsCache[0] : 1;
+  }
+  renderLessonSessionTabs();
+  await loadLessonEditor();
+}
+
+function renderLessonSessionTabs() {
+  const tabs = document.getElementById("lesson-session-tabs");
+  const nextSession = lessonSessionsCache.length ? Math.max(...lessonSessionsCache) + 1 : 1;
+  const isNew = !lessonSessionsCache.includes(lessonSession);
+
+  let html = lessonSessionsCache
+    .map((n) => `<div class="dtab ${n === lessonSession ? "active" : ""}" data-lsession="${n}">${n}회차</div>`)
+    .join("");
+  html += `<div class="dtab ${isNew ? "active" : ""}" data-lsession="${nextSession}">+ ${nextSession}회차</div>`;
+  tabs.innerHTML = html;
+
+  tabs.querySelectorAll(".dtab").forEach((t) => {
+    t.addEventListener("click", async () => {
+      lessonSession = Number(t.dataset.lsession);
+      tabs.querySelectorAll(".dtab").forEach((x) =>
+        x.classList.toggle("active", Number(x.dataset.lsession) === lessonSession));
+      await loadLessonEditor();
+    });
+  });
+}
+
+async function loadLessonEditor() {
+  const editor = document.getElementById("lesson-editor");
+  editor.innerHTML = '<div class="loading">불러오는 중…</div>';
+  try {
+    const { log, exercises } = await getLessonLog(detailMember.id, lessonDate, lessonSession);
+    if (log) {
+      lessonExercises = exercises.map((ex) => ({ exercise_name: ex.exercise_name, sets: ex.sets || [] }));
+      lessonMemo = log.memo || "";
+    } else {
+      lessonExercises = [];
+      lessonMemo = "";
+    }
+  } catch (e) {
+    lessonExercises = [];
+    lessonMemo = "";
+  }
+  renderLessonEditor();
+}
+
+function renderLessonEditor() {
+  const editor = document.getElementById("lesson-editor");
+  let html = "";
+
+  lessonExercises.forEach((ex, i) => {
+    html += `<div class="lesson-ex-card" data-ex="${i}">
+      <div class="lesson-ex-header">
+        <input class="input lesson-ex-name" type="text" value="${escapeAttr(ex.exercise_name)}" placeholder="운동 종목명" />
+        <button class="lesson-ex-del" data-ex="${i}">×</button>
+      </div>`;
+    (ex.sets || []).forEach((s, si) => {
+      html += `<div class="lesson-set-row" data-set="${si}">
+        <span class="lesson-set-num">${si + 1}세트</span>
+        <input class="input lesson-set-weight" type="number" inputmode="decimal" placeholder="kg" value="${s.weight_kg != null ? s.weight_kg : ""}" />
+        <span class="lesson-set-x">×</span>
+        <input class="input lesson-set-reps" type="number" inputmode="numeric" placeholder="회" value="${s.reps != null ? s.reps : ""}" />
+        <button class="lesson-set-del" data-ex="${i}" data-set="${si}">×</button>
+      </div>`;
+    });
+    html += `<button class="btn btn-outline lesson-add-set" data-ex="${i}">+ 세트 추가</button>
+    </div>`;
+  });
+
+  html += `<button class="btn btn-outline" id="lesson-add-ex" style="margin-top:8px;margin-bottom:12px;width:100%;">+ 종목 추가</button>`;
+  html += `<div class="diet-field"><label>회차 메모</label>
+    <textarea id="lesson-memo" placeholder="레슨 메모">${escapeHtml(lessonMemo)}</textarea></div>`;
+  html += `<button class="btn btn-primary" id="lesson-save">${lessonSession}회차 레슨 저장</button>`;
+
+  editor.innerHTML = html;
+
+  document.getElementById("lesson-add-ex").addEventListener("click", () => {
+    syncLessonFromDOM();
+    lessonExercises.push({ exercise_name: "", sets: [{ set_number: 1, weight_kg: null, reps: null }] });
+    renderLessonEditor();
+  });
+
+  editor.querySelectorAll(".lesson-ex-del").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      syncLessonFromDOM();
+      lessonExercises.splice(Number(btn.dataset.ex), 1);
+      renderLessonEditor();
+    });
+  });
+
+  editor.querySelectorAll(".lesson-add-set").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      syncLessonFromDOM();
+      const i = Number(btn.dataset.ex);
+      lessonExercises[i].sets.push({ set_number: lessonExercises[i].sets.length + 1, weight_kg: null, reps: null });
+      renderLessonEditor();
+    });
+  });
+
+  editor.querySelectorAll(".lesson-set-del").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      syncLessonFromDOM();
+      const i = Number(btn.dataset.ex);
+      const si = Number(btn.dataset.set);
+      lessonExercises[i].sets.splice(si, 1);
+      lessonExercises[i].sets = lessonExercises[i].sets.map((s, idx) => ({ ...s, set_number: idx + 1 }));
+      renderLessonEditor();
+    });
+  });
+
+  document.getElementById("lesson-save").addEventListener("click", saveLesson);
+}
+
+function syncLessonFromDOM() {
+  const cards = document.querySelectorAll("#lesson-editor .lesson-ex-card");
+  lessonExercises = Array.from(cards).map((card) => {
+    const sets = Array.from(card.querySelectorAll(".lesson-set-row")).map((row, si) => ({
+      set_number: si + 1,
+      weight_kg: parseFloat(row.querySelector(".lesson-set-weight").value) || null,
+      reps: parseInt(row.querySelector(".lesson-set-reps").value, 10) || null,
+    }));
+    return { exercise_name: card.querySelector(".lesson-ex-name").value.trim(), sets };
+  });
+  const memoEl = document.getElementById("lesson-memo");
+  if (memoEl) lessonMemo = memoEl.value.trim();
+}
+
+async function saveLesson() {
+  syncLessonFromDOM();
+  const btn = document.getElementById("lesson-save");
+  btn.disabled = true;
+  btn.textContent = "저장 중…";
+  try {
+    await saveLessonLog(detailMember.id, lessonDate, lessonSession, lessonExercises, lessonMemo);
+    showToast(`${lessonSession}회차 레슨을 저장했어요 ✅`);
+    lessonSessionsCache = await getLessonSessionsOfDate(detailMember.id, lessonDate);
+    lessonDatesCache = await getLessonDatesOfMonth(detailMember.id, lessonCalYear, lessonCalMonth);
+    await renderLessonCalendar();
+    renderLessonSessionTabs();
+  } catch (e) {
+    showToast("저장 실패: 연결을 확인하세요");
+  }
+  btn.disabled = false;
+  btn.textContent = `${lessonSession}회차 레슨 저장`;
 }
 
 // ===== HTML 이스케이프 =====
