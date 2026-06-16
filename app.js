@@ -178,7 +178,7 @@ async function renderMemberWorkoutHistory(userId) {
     const doneSets = countDoneSets(exercises);
     const totalSets = exercises.reduce((s, e) => s + (e.sets || []).length, 0);
     const names = exercises.map((e) => e.name).filter(Boolean).join(", ");
-    const typeLabel = log.day ? `${log.day}회차` : "자유기록";
+    const typeLabel = log.day === 0 ? "자유기록" : log.day === 99 ? "레슨기록" : `${log.day}회차`;
     return `<div class="history-row">
       <div class="history-date">${log.date} · ${typeLabel}</div>
       <div class="history-exercises">${escapeHtml(names) || "-"}</div>
@@ -200,6 +200,7 @@ let trackerUser = null;
 let trackerSessions = [];
 let currentSessionKey = null;
 const trackerState = {}; // { sessionKey: { exIdx: [ {weight,reps,result} ] } }
+let freeExercises = []; // [{name, equipment, memo, sets: [{kg, reps}]}]
 
 async function initTrackerPage() {
   trackerUser = requireAuth();
@@ -255,7 +256,7 @@ function buildSessionTabs() {
   const bar = document.getElementById("tab-bar");
   bar.innerHTML = trackerSessions
     .map((s) => `<div class="tab" data-key="${s.key}">${s.label}</div>`)
-    .join("");
+    .join("") + `<div class="tab" data-key="0">자유기록</div>`;
   bar.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", () => selectSession(Number(tab.dataset.key)));
   });
@@ -296,6 +297,11 @@ async function selectSession(key) {
   document.querySelectorAll("#tab-bar .tab").forEach((t) => {
     t.classList.toggle("active", Number(t.dataset.key) === key);
   });
+
+  if (key === 0) {
+    await initFreeMode();
+    return;
+  }
 
   // 저장된 기록을 1회만 로드해 런타임 상태로 복원
   if (!(key in trackerState)) {
@@ -551,6 +557,10 @@ async function saveCurrentSessionSilent() {
 }
 
 async function saveCurrentSession() {
+  if (currentSessionKey === 0) {
+    await saveFreeModeSession();
+    return;
+  }
   const session = trackerSessions.find((s) => s.key === currentSessionKey);
   const exercises = buildSaveExercises();
   if (countDoneSets(exercises) === 0) {
@@ -720,6 +730,127 @@ async function initDietPage() {
     btn.disabled = false;
     btn.textContent = "식단 저장";
   });
+}
+
+// ===== 자유기록 =====
+async function initFreeMode() {
+  await loadExerciseList();
+  if (!freeExercises.length) {
+    try {
+      const log = await getWorkout(trackerUser.id, todayKey(), 0);
+      if (log && log.exercises) {
+        freeExercises = log.exercises.map((e) => ({
+          name: e.name || "",
+          equipment: e.equipment || null,
+          memo: e.memo || "",
+          sets: (e.sets || []).length
+            ? e.sets.map((s) => ({ kg: s.kg != null ? String(s.kg) : "", reps: s.reps != null ? String(s.reps) : "" }))
+            : [{ kg: "", reps: "" }],
+        }));
+      }
+    } catch (e) { /* 무시 */ }
+  }
+  renderFreeSection();
+}
+
+function renderFreeSection() {
+  const list = document.getElementById("exercise-list");
+  let html = freeExercises.map((ex, i) => `
+    <div class="card free-ex-card" data-i="${i}" style="margin-bottom:10px;">
+      ${renderExerciseInput(ex.name, ex.equipment || null, i, false)}
+      <div class="free-set-rows">
+        ${(ex.sets || [{ kg: "", reps: "" }]).map((s, si) => `
+          <div class="free-set-row">
+            <span class="set-no">${si + 1}</span>
+            <input class="input mini free-kg" type="number" inputmode="decimal" placeholder="kg" value="${escapeAttr(s.kg || "")}" />
+            <input class="input mini free-reps" type="number" inputmode="numeric" placeholder="횟수" value="${escapeAttr(s.reps || "")}" />
+          </div>
+        `).join("")}
+      </div>
+      <div class="free-ex-controls">
+        <button class="btn btn-outline free-add-set" data-i="${i}">+ 세트</button>
+        <button class="presc-del free-del-ex" data-i="${i}">삭제</button>
+      </div>
+      <textarea class="input free-ex-memo" placeholder="메모 (특이사항 등)" rows="1">${escapeHtml(ex.memo || "")}</textarea>
+    </div>
+  `).join("");
+
+  if (!freeExercises.length) {
+    html += `<div class="empty">아래 버튼으로 종목을 추가하세요</div>`;
+  }
+  html += `<button class="btn btn-outline" id="free-add-ex" style="margin-bottom:8px;">+ 종목 추가</button>`;
+  list.innerHTML = html;
+
+  bindExerciseInputs(list, (wrap, name, equipment) => {
+    const i = Number(wrap.dataset.exIndex);
+    if (freeExercises[i]) { freeExercises[i].name = name; freeExercises[i].equipment = equipment || null; }
+  }, false);
+
+  document.getElementById("free-add-ex").addEventListener("click", () => {
+    syncFreeFromDOM();
+    freeExercises.push({ name: "", equipment: null, memo: "", sets: [{ kg: "", reps: "" }] });
+    renderFreeSection();
+  });
+
+  list.querySelectorAll(".free-del-ex").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      syncFreeFromDOM();
+      freeExercises.splice(Number(btn.dataset.i), 1);
+      renderFreeSection();
+    });
+  });
+
+  list.querySelectorAll(".free-add-set").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      syncFreeFromDOM();
+      const i = Number(btn.dataset.i);
+      if (freeExercises[i]) { freeExercises[i].sets.push({ kg: "", reps: "" }); renderFreeSection(); }
+    });
+  });
+}
+
+function syncFreeFromDOM() {
+  const prev = freeExercises.slice();
+  const cards = document.querySelectorAll("#exercise-list .free-ex-card");
+  freeExercises = Array.from(cards).map((card, i) => {
+    const nameInput = card.querySelector(".ex-search-input");
+    const activeEq = card.querySelector(".eq-tag.active");
+    const memoEl = card.querySelector(".free-ex-memo");
+    const sets = Array.from(card.querySelectorAll(".free-set-row")).map((row) => ({
+      kg: row.querySelector(".free-kg").value || "",
+      reps: row.querySelector(".free-reps").value || "",
+    }));
+    return {
+      name: nameInput ? nameInput.value.trim() : "",
+      equipment: activeEq ? activeEq.dataset.eq : (prev[i] ? prev[i].equipment : null),
+      memo: memoEl ? memoEl.value.trim() : "",
+      sets: sets.length ? sets : [{ kg: "", reps: "" }],
+    };
+  });
+}
+
+async function saveFreeModeSession() {
+  syncFreeFromDOM();
+  const valid = freeExercises.filter((e) => e.name);
+  if (!valid.length) { showToast("종목을 1개 이상 추가하세요"); return; }
+  const btn = document.getElementById("finish-btn");
+  btn.disabled = true; btn.textContent = "저장 중…";
+  try {
+    const exercises = valid.map((ex) => ({
+      name: ex.name,
+      equipment: ex.equipment || null,
+      memo: ex.memo || "",
+      sets: (ex.sets || []).filter((s) => s.kg || s.reps).map((s, i) => ({
+        set_number: i + 1,
+        kg: s.kg ? Number(s.kg) : null,
+        reps: s.reps ? Number(s.reps) : null,
+        result: "success",
+      })),
+    }));
+    await saveWorkout(trackerUser.id, todayKey(), 0, exercises);
+    showToast("자유기록 저장 완료 💪");
+  } catch (e) { showToast("저장 실패: 연결을 확인하세요"); }
+  btn.disabled = false; btn.textContent = "오늘 운동 저장";
 }
 
 // ===== 러닝 =====
@@ -948,6 +1079,8 @@ let prescWeek = null;     // Date (월요일)
 let prescSession = 1;     // 1~5
 let prescExercises = [];  // [{name, sets, reps, weight, warmup}]
 let prescMemo = "";
+let lessonExercises = []; // [{name, equipment, sets: [{kg, reps}]}]
+let lessonDate = null;
 
 function trainerLogout() {
   sessionStorage.removeItem(DASH_SESSION_KEY);
@@ -1022,6 +1155,8 @@ async function loadMembers() {
 
 function openMemberDetail(member) {
   detailMember = member;
+  lessonDate = null;
+  lessonExercises = [];
   document.getElementById("member-list-view").style.display = "none";
   document.getElementById("member-detail-view").style.display = "block";
   document.getElementById("detail-name").textContent = `${member.name} 회원`;
@@ -1038,8 +1173,10 @@ function switchDetailMode(mode) {
     t.classList.toggle("active", t.dataset.mode === mode));
   document.getElementById("records-mode").style.display = mode === "records" ? "block" : "none";
   document.getElementById("prescribe-mode").style.display = mode === "prescribe" ? "block" : "none";
+  document.getElementById("lesson-mode").style.display = mode === "lesson" ? "block" : "none";
   if (mode === "records") renderRecords();
-  else initPrescribe();
+  else if (mode === "prescribe") initPrescribe();
+  else if (mode === "lesson") initLesson();
 }
 
 // ----- 기록 조회 -----
@@ -1239,6 +1376,142 @@ async function savePrescription() {
   }
   btn.disabled = false;
   btn.textContent = `${prescSession}회차 처방 저장`;
+}
+
+// ----- 레슨 기록 -----
+async function initLesson() {
+  await loadExerciseList();
+  if (!lessonDate) lessonDate = todayKey();
+  try {
+    const log = await getWorkout(detailMember.id, lessonDate, 99);
+    if (log && log.exercises) {
+      lessonExercises = log.exercises.map((e) => ({
+        name: e.name || "",
+        equipment: e.equipment || null,
+        sets: (e.sets || []).length
+          ? e.sets.map((s) => ({ kg: s.kg != null ? String(s.kg) : "", reps: s.reps != null ? String(s.reps) : "" }))
+          : [{ kg: "", reps: "" }],
+      }));
+    } else {
+      lessonExercises = [];
+    }
+  } catch (e) {
+    lessonExercises = [];
+  }
+  renderLessonEditor();
+}
+
+function renderLessonEditor() {
+  const container = document.getElementById("lesson-mode");
+  let html = `<div class="card" style="margin-bottom:10px;">
+    <div class="field-row" style="margin-bottom:0;">
+      <label>날짜</label>
+      <input class="input" type="date" id="lesson-date-input" value="${escapeAttr(lessonDate || todayKey())}" />
+    </div>
+  </div><div id="lesson-editor">`;
+
+  lessonExercises.forEach((ex, i) => {
+    html += `<div class="presc-ex" data-i="${i}">
+      ${renderExerciseInput(ex.name, ex.equipment || null, i, true)}
+      <div class="free-set-rows">
+        ${(ex.sets || [{ kg: "", reps: "" }]).map((s, si) => `
+          <div class="free-set-row">
+            <span class="set-no">${si + 1}</span>
+            <input class="input mini free-kg" type="number" inputmode="decimal" placeholder="kg" value="${escapeAttr(s.kg || "")}" />
+            <input class="input mini free-reps" type="number" inputmode="numeric" placeholder="횟수" value="${escapeAttr(s.reps || "")}" />
+          </div>
+        `).join("")}
+      </div>
+      <div class="free-ex-controls">
+        <button class="btn btn-outline free-add-set" data-i="${i}">+ 세트</button>
+        <button class="presc-del lesson-del-ex" data-i="${i}">삭제</button>
+      </div>
+    </div>`;
+  });
+
+  html += `</div>
+  <button class="btn btn-outline" id="lesson-add-ex" style="margin-bottom:12px;">+ 종목 추가</button>
+  <button class="btn btn-primary" id="lesson-save">레슨 기록 저장</button>`;
+
+  container.innerHTML = html;
+
+  document.getElementById("lesson-date-input").addEventListener("change", async (e) => {
+    syncLessonFromDOM();
+    lessonDate = e.target.value;
+    lessonExercises = [];
+    await initLesson();
+  });
+
+  const editor = document.getElementById("lesson-editor");
+  bindExerciseInputs(editor, (wrap, name, equipment) => {
+    const i = Number(wrap.dataset.exIndex);
+    if (lessonExercises[i]) { lessonExercises[i].name = name; lessonExercises[i].equipment = equipment || null; }
+  }, true);
+
+  document.getElementById("lesson-add-ex").addEventListener("click", () => {
+    syncLessonFromDOM();
+    lessonExercises.push({ name: "", equipment: null, sets: [{ kg: "", reps: "" }] });
+    renderLessonEditor();
+  });
+
+  editor.querySelectorAll(".lesson-del-ex").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      syncLessonFromDOM();
+      lessonExercises.splice(Number(btn.dataset.i), 1);
+      renderLessonEditor();
+    });
+  });
+
+  editor.querySelectorAll(".free-add-set").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      syncLessonFromDOM();
+      const i = Number(btn.dataset.i);
+      if (lessonExercises[i]) { lessonExercises[i].sets.push({ kg: "", reps: "" }); renderLessonEditor(); }
+    });
+  });
+
+  document.getElementById("lesson-save").addEventListener("click", saveLesson);
+}
+
+function syncLessonFromDOM() {
+  const prev = lessonExercises.slice();
+  const cards = document.querySelectorAll("#lesson-editor .presc-ex");
+  lessonExercises = Array.from(cards).map((card, i) => {
+    const nameInput = card.querySelector(".ex-search-input");
+    const activeEq = card.querySelector(".eq-tag.active");
+    const sets = Array.from(card.querySelectorAll(".free-set-row")).map((row) => ({
+      kg: row.querySelector(".free-kg").value || "",
+      reps: row.querySelector(".free-reps").value || "",
+    }));
+    return {
+      name: nameInput ? nameInput.value.trim() : "",
+      equipment: activeEq ? activeEq.dataset.eq : (prev[i] ? prev[i].equipment : null),
+      sets: sets.length ? sets : [{ kg: "", reps: "" }],
+    };
+  });
+}
+
+async function saveLesson() {
+  syncLessonFromDOM();
+  const valid = lessonExercises.filter((e) => e.name);
+  if (!valid.length) { showToast("종목을 1개 이상 입력하세요"); return; }
+  const btn = document.getElementById("lesson-save");
+  btn.disabled = true; btn.textContent = "저장 중…";
+  try {
+    const exercises = valid.map((ex) => ({
+      name: ex.name,
+      equipment: ex.equipment || null,
+      sets: (ex.sets || []).filter((s) => s.kg || s.reps).map((s, i) => ({
+        set_number: i + 1,
+        kg: s.kg ? Number(s.kg) : null,
+        reps: s.reps ? Number(s.reps) : null,
+        result: "success",
+      })),
+    }));
+    await saveWorkout(detailMember.id, lessonDate || todayKey(), 99, exercises);
+    showToast("레슨 기록 저장 완료 ✅");
+  } catch (e) { showToast("저장 실패: 연결을 확인하세요"); }
+  btn.disabled = false; btn.textContent = "레슨 기록 저장";
 }
 
 // ===== 종목 관리 (트레이너) =====
